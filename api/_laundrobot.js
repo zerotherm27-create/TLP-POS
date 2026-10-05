@@ -55,7 +55,7 @@ export const mapLaundrobotOrder = (rawOrder) => {
         `No product found for ${s.kind} ${s.durationMinutes}min. Update api/_products.json.`
       );
     }
-    return { productId: product.id, quantity: s.quantity ?? 1 };
+    return { productId: product.id, quantity: s.quantity ?? 1, priceCents: s.priceCents };
   });
 
   return {

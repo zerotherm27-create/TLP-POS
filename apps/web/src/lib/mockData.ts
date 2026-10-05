@@ -44,7 +44,7 @@ export const mockJobOrders: JobOrder[] = [
   {
     id: "jo3", branchId: "b1", source: "laundrobot", orderNumber: "LB-4471",
     customerName: "Liza Ortega", contactNumber: "+63 918 221-5590",
-    services: [{ productId: "p5", quantity: 1 }],
+    services: [{ productId: "p5", quantity: 1, priceCents: 6000 }],
     assignments: [{ machineId: "m6", productId: "p5", assignedAt: new Date(Date.now() - 5 * 60000).toISOString() }],
     status: "in_progress", paymentStatus: "paid", fulfillmentStage: "drying",
     createdAt: new Date(Date.now() - 60 * 60000).toISOString(),

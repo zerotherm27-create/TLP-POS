@@ -74,6 +74,7 @@ export interface SaleLine {
 export interface ServiceLine {
   productId: string;
   quantity: number;
+  priceCents?: number; // set by LaundroBot at booking time; absent for TLP walk-in orders
 }
 
 export interface MachineAssignment {

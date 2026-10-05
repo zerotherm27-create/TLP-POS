@@ -131,6 +131,8 @@ function DetailPanel({
   const stage = STAGES[order.fulfillmentStage] ?? STAGES.queued;
   const services = orderServices(order, products);
   const isActive = order.status !== "completed" && order.status !== "voided";
+  const orderTotal = services.reduce((sum, { line, product }) =>
+    sum + (line.priceCents ?? (product?.priceCents ?? 0) * line.quantity), 0);
 
   const assignedProductIds = new Set(order.assignments.map((a) => a.productId));
   const unassignedServices = services.filter(({ line }) => !assignedProductIds.has(line.productId));
@@ -208,25 +210,34 @@ function DetailPanel({
         <div>
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Services</div>
           <div className="flex flex-col gap-1.5">
-            {services.map(({ line, product }) => (
-              <div key={line.productId} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-zinc-50 flex items-center justify-center">
-                    {product?.machineKind === "washer"
-                      ? <WashingMachine size={12} className="text-zinc-400" strokeWidth={1.8} />
-                      : <Wind size={12} className="text-zinc-400" strokeWidth={1.8} />
-                    }
+            {services.map(({ line, product }) => {
+              const linePrice = line.priceCents ?? (product?.priceCents ?? 0) * line.quantity;
+              return (
+                <div key={line.productId} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-zinc-50 flex items-center justify-center">
+                      {product?.machineKind === "washer"
+                        ? <WashingMachine size={12} className="text-zinc-400" strokeWidth={1.8} />
+                        : <Wind size={12} className="text-zinc-400" strokeWidth={1.8} />
+                      }
+                    </div>
+                    <span className="text-sm text-zinc-700">{product?.name ?? line.productId}</span>
+                    {line.quantity > 1 && (
+                      <span className="text-xs text-zinc-400">×{line.quantity}</span>
+                    )}
                   </div>
-                  <span className="text-sm text-zinc-700">{product?.name ?? line.productId}</span>
-                  {line.quantity > 1 && (
-                    <span className="text-xs text-zinc-400">×{line.quantity}</span>
-                  )}
+                  <span className="text-sm font-semibold text-zinc-700">
+                    {formatPeso(linePrice)}
+                  </span>
                 </div>
-                <span className="text-sm font-semibold text-zinc-700">
-                  {formatPeso((product?.priceCents ?? 0) * line.quantity)}
-                </span>
+              );
+            })}
+            {orderTotal > 0 && (
+              <div className="flex items-center justify-between pt-2 mt-1 border-t border-zinc-100">
+                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Total</span>
+                <span className="text-sm font-bold text-zinc-900">{formatPeso(orderTotal)}</span>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
