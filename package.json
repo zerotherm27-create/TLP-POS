@@ -1,0 +1,33 @@
+{
+  "name": "tlp-pos",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "dev:gateway": "npm run dev -w apps/gateway",
+    "build": "npm run build --workspaces --if-present",
+    "test": "tsc packages/shared/src/orderWorkflow.ts packages/shared/src/orderWorkflow.test.ts --module NodeNext --moduleResolution NodeNext --target ES2022 --outDir .tmp-tests --rootDir . --skipLibCheck --types node && node --test .tmp-tests/packages/shared/src/orderWorkflow.test.js",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "framer-motion": "^14.0.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3"
+  }
+}
