@@ -1,5 +1,3 @@
 {
-  "crons": [
-    { "path": "/api/orders/pull", "schedule": "*/5 * * * *" }
-  ]
+  "crons": []
 }
