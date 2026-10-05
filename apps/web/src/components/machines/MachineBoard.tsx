@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MachineCard from "./MachineCard";
-import type { Machine } from "@tlp/shared";
-import { WashingMachine, Wind, Zap, CheckCircle2, WifiOff, Settings2, AlertTriangle } from "lucide-react";
+import type { Machine, JobOrder } from "@tlp/shared";
+import { WashingMachine, Wind, Zap, CheckCircle2, WifiOff, AlertTriangle, X, RotateCcw, ArrowLeftRight } from "lucide-react";
 
 /* ── Stat chip ── */
 function StatChip({
@@ -44,13 +44,16 @@ function SectionLabel({ label, count }: { label: string; count: number }) {
 interface Props {
   machines: Machine[];
   isAdmin?: boolean;
+  threshold?: number;
   onMarkCleaned?: (machineId: string) => void;
+  orders?: JobOrder[];
+  onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
+  onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
 }
 
-export default function MachineBoard({ machines, isAdmin, onMarkCleaned }: Props) {
-  const [threshold, setThreshold] = useState(50);
-  const [showThresholdEditor, setShowThresholdEditor] = useState(false);
-  const [draftThreshold, setDraftThreshold] = useState(String(threshold));
+export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, onUnassign, onAssign }: Props) {
+  const [activeMachine, setActiveMachine] = useState<Machine | null>(null);
+  const [sheetReason, setSheetReason] = useState("");
 
   const washers = machines.filter((m) => m.kind === "washer");
   const dryers = machines.filter((m) => m.kind === "dryer");
@@ -64,11 +67,25 @@ export default function MachineBoard({ machines, isAdmin, onMarkCleaned }: Props
 
   const dueCount = machines.filter(isDue).length;
 
-  const applyThreshold = () => {
-    const n = parseInt(draftThreshold, 10);
-    if (!isNaN(n) && n > 0) setThreshold(n);
-    setShowThresholdEditor(false);
+  const handleCardSelect = (m: Machine) => {
+    if (m.status === "running" && orders && onUnassign && onAssign) {
+      setActiveMachine(m);
+      setSheetReason("");
+    }
   };
+
+  const closeSheet = () => {
+    setActiveMachine(null);
+    setSheetReason("");
+  };
+
+  // Resolve the order and assignment for the active machine
+  const activeOrder = activeMachine?.activeJobOrderId
+    ? (orders ?? []).find((o) => o.id === activeMachine.activeJobOrderId) ?? null
+    : null;
+  const activeAssignment = activeOrder?.assignments.find((a) => a.machineId === activeMachine?.id) ?? null;
+
+  const reasonOk = sheetReason.trim().length > 0;
 
   const renderCard = (m: Machine, delay: number) => (
     <motion.div
@@ -81,6 +98,7 @@ export default function MachineBoard({ machines, isAdmin, onMarkCleaned }: Props
         machine={m}
         tubCleaningDue={isDue(m)}
         onMarkCleaned={isAdmin ? onMarkCleaned : undefined}
+        onSelect={m.status === "running" && orders && onUnassign && onAssign ? handleCardSelect : undefined}
       />
     </motion.div>
   );
@@ -132,69 +150,8 @@ export default function MachineBoard({ machines, isAdmin, onMarkCleaned }: Props
             </div>
           </div>
 
-          {/* Admin: threshold settings trigger */}
-          {isAdmin && (
-            <button
-              onClick={() => {
-                setDraftThreshold(String(threshold));
-                setShowThresholdEditor((v) => !v);
-              }}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 transition-colors"
-              title="Tub cleaning settings"
-            >
-              <Settings2 size={14} strokeWidth={2} />
-            </button>
-          )}
         </div>
       </div>
-
-      {/* ── Admin: threshold editor panel ── */}
-      <AnimatePresence>
-        {isAdmin && showThresholdEditor && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, height: 0 }}
-            animate={{ opacity: 1, y: 0, height: "auto" }}
-            exit={{ opacity: 0, y: -4, height: 0 }}
-            transition={{ type: "spring", stiffness: 320, damping: 28 }}
-            className="overflow-hidden"
-          >
-            <div
-              className="bg-amber-50 border border-amber-200/70 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4"
-            >
-              <div className="flex-1">
-                <div className="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-0.5">
-                  Tub Cleaning Reminder
-                </div>
-                <div className="text-[12px] text-amber-600">
-                  Notify after every{" "}
-                  <strong>{threshold}</strong> loads per machine.
-                  Currently: {washers.map((m) => `${m.publicCode} (${(m.cycleCount ?? 0) - (m.lastTubCleanCycle ?? 0)} loads)`).join(" · ")}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <label className="text-[11px] text-amber-700 font-semibold">Every</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={draftThreshold}
-                  onChange={(e) => setDraftThreshold(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && applyThreshold()}
-                  className="w-16 h-8 rounded-xl border border-amber-300 bg-white text-center text-sm font-bold text-amber-800 outline-none focus:ring-2 focus:ring-amber-400/50 tabular-nums"
-                />
-                <label className="text-[11px] text-amber-700 font-semibold">loads</label>
-                <button
-                  onClick={applyThreshold}
-                  className="h-8 px-3 text-[11px] font-bold text-white rounded-xl"
-                  style={{ background: "#d97706" }}
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── Now Running hero strip ── */}
       <AnimatePresence>
@@ -238,6 +195,122 @@ export default function MachineBoard({ machines, isAdmin, onMarkCleaned }: Props
           {dryers.map((m, i) => renderCard(m, (washers.length + i) * 0.04))}
         </div>
       </div>
+
+      {/* ── Action sheet overlay (machine card tap) ── */}
+      <AnimatePresence>
+        {activeMachine && activeOrder && activeAssignment && onUnassign && onAssign && (
+          <>
+            <motion.div
+              key="sheet-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeSheet}
+              className="fixed inset-0 bg-black/30 z-40"
+            />
+            <motion.div
+              key="sheet"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 340, damping: 32 }}
+              className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white overflow-hidden"
+              style={{ maxHeight: "75dvh" }}
+            >
+              {/* Sheet header */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-zinc-100">
+                <div>
+                  <div className="text-sm font-bold text-zinc-900">{activeMachine.name}</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-lg">{activeMachine.publicCode}</span>
+                    <span className="text-[11px] text-zinc-400">{activeOrder.customerName}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={closeSheet}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-300 hover:text-zinc-500 hover:bg-zinc-50 transition-colors"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto">
+                {/* Reason input */}
+                <div>
+                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Reason</div>
+                  <input
+                    value={sheetReason}
+                    onChange={(e) => setSheetReason(e.target.value)}
+                    placeholder="Describe why this machine needs rework or reassignment…"
+                    autoFocus
+                    className="w-full h-9 px-3 text-sm rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
+                  />
+                </div>
+
+                {/* Rework */}
+                <div>
+                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Rework</div>
+                  <button
+                    disabled={!reasonOk}
+                    onClick={() => {
+                      if (!reasonOk) return;
+                      onUnassign(activeOrder.id, activeAssignment.lineId, activeMachine.id, sheetReason.trim(), "rework");
+                      onAssign(activeOrder.id, activeMachine.id, activeAssignment.productId, activeAssignment.lineId);
+                      closeSheet();
+                    }}
+                    className={`flex items-center gap-2 h-10 px-4 rounded-xl border text-sm font-semibold transition-colors ${
+                      reasonOk
+                        ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                        : "border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                    }`}
+                  >
+                    <RotateCcw size={14} strokeWidth={2.5} />
+                    Restart on {activeMachine.publicCode}
+                  </button>
+                </div>
+
+                {/* Reassign */}
+                <div>
+                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Reassign to another machine</div>
+                  {(() => {
+                    const alternatives = machines.filter(
+                      (m) => m.kind === activeMachine.kind && m.status === "online" && m.id !== activeMachine.id
+                    );
+                    if (alternatives.length === 0) {
+                      return <p className="text-[11px] text-zinc-300">No other {activeMachine.kind}s available</p>;
+                    }
+                    return (
+                      <div className="flex flex-wrap gap-1.5">
+                        {alternatives.map((m) => (
+                          <button
+                            key={m.id}
+                            disabled={!reasonOk}
+                            onClick={() => {
+                              if (!reasonOk) return;
+                              onUnassign(activeOrder.id, activeAssignment.lineId, activeMachine.id, sheetReason.trim(), "reassign");
+                              onAssign(activeOrder.id, m.id, activeAssignment.productId, activeAssignment.lineId);
+                              closeSheet();
+                            }}
+                            className={`flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[12px] font-semibold transition-colors ${
+                              reasonOk
+                                ? "border-zinc-200 text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa]"
+                                : "border-zinc-100 text-zinc-300 cursor-not-allowed"
+                            }`}
+                          >
+                            <ArrowLeftRight size={12} strokeWidth={2.5} />
+                            <span className="font-bold">{m.publicCode}</span>
+                            <span className="font-normal text-zinc-400">{m.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

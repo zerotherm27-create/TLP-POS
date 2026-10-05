@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Clock, ExternalLink, Phone, StickyNote,
-  WashingMachine, Wind, X, ChevronRight,
+  WashingMachine, Wind, X, ChevronRight, RotateCcw, ArrowLeftRight,
 } from "lucide-react";
 import type { JobOrder, Product, Machine, FulfillmentStage } from "@tlp/shared";
 import { formatPeso, formatTime, formatDateTime } from "../../lib/format";
@@ -119,6 +119,7 @@ function DetailPanel({
   onClose,
   onVoid,
   onAssign,
+  onUnassign,
 }: {
   order: JobOrder;
   products: Product[];
@@ -127,7 +128,10 @@ function DetailPanel({
   onClose: () => void;
   onVoid: (id: string) => void;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
+  onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
 }) {
+  const [actionLine, setActionLine] = useState<{ lineId: string; machineId: string; productId: string; mode: "rework" | "reassign" } | null>(null);
+  const [actionReason, setActionReason] = useState("");
   const stage = STAGES[order.fulfillmentStage] ?? STAGES.queued;
   const services = orderServices(order, products);
   const isActive = order.status !== "completed" && order.status !== "voided";
@@ -281,15 +285,97 @@ function DetailPanel({
               {order.assignments.map((a) => {
                 const machine = machines.find((m) => m.id === a.machineId);
                 const product = products.find((p) => p.id === a.productId);
+                const isActioning = actionLine?.lineId === a.lineId;
                 return (
-                  <div key={a.machineId} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-lg tabular-nums">
-                        {machine?.publicCode ?? a.machineId}
-                      </span>
-                      <span className="text-sm text-zinc-600">{machine?.name ?? a.machineId}</span>
+                  <div key={a.lineId} className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-lg tabular-nums">
+                          {machine?.publicCode ?? a.machineId}
+                        </span>
+                        <span className="text-sm text-zinc-600">{machine?.name ?? a.machineId}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[11px] text-zinc-400 mr-1">{product?.name}</span>
+                        {isAdmin && isActive && onUnassign && (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (isActioning && actionLine!.mode === "rework") { setActionLine(null); setActionReason(""); }
+                                else { setActionLine({ lineId: a.lineId, machineId: a.machineId, productId: a.productId, mode: "rework" }); setActionReason(""); }
+                              }}
+                              title="Rework (same machine)"
+                              className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${isActioning && actionLine?.mode === "rework" ? "bg-amber-100 text-amber-600" : "text-zinc-300 hover:text-amber-500 hover:bg-amber-50"}`}
+                            >
+                              <RotateCcw size={11} strokeWidth={2.5} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (isActioning && actionLine!.mode === "reassign") { setActionLine(null); setActionReason(""); }
+                                else { setActionLine({ lineId: a.lineId, machineId: a.machineId, productId: a.productId, mode: "reassign" }); setActionReason(""); }
+                              }}
+                              title="Reassign (different machine)"
+                              className={`w-6 h-6 rounded-lg flex items-center justify-center transition-colors ${isActioning && actionLine?.mode === "reassign" ? "bg-teal-100 text-teal-600" : "text-zinc-300 hover:text-[#009eb5] hover:bg-[#e0f6fa]"}`}
+                            >
+                              <ArrowLeftRight size={11} strokeWidth={2.5} />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-[11px] text-zinc-400">{product?.name}</span>
+                    {/* Inline picker for rework / reassign */}
+                    {isActioning && actionLine && onUnassign && onAssign && (() => {
+                      const al = actionLine;
+                      const available = machines.filter((m) => {
+                        if (m.kind !== product?.machineKind) return false;
+                        if (al.mode === "rework") return m.id === a.machineId;
+                        return m.id !== a.machineId && m.status === "online";
+                      });
+                      const reasonOk = actionReason.trim().length > 0;
+                      return (
+                        <div className="ml-2 pl-3 border-l-2 border-zinc-100">
+                          <div className="text-[10px] text-zinc-400 mb-1.5">
+                            {al.mode === "rework" ? "Confirm rework on same machine:" : "Pick replacement machine:"}
+                          </div>
+                          <input
+                            value={actionReason}
+                            onChange={(e) => setActionReason(e.target.value)}
+                            placeholder="Reason (required)"
+                            autoFocus
+                            className="w-full mb-2 h-8 px-3 text-[11px] rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
+                          />
+                          {available.length === 0 ? (
+                            <p className="text-[11px] text-zinc-300">
+                              {al.mode === "rework" ? "Machine not available" : `No other ${product?.machineKind}s available`}
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {available.map((m) => (
+                                <button
+                                  key={m.id}
+                                  disabled={!reasonOk}
+                                  onClick={() => {
+                                    if (!reasonOk) return;
+                                    onUnassign(order.id, a.lineId, a.machineId, actionReason.trim(), al.mode);
+                                    onAssign(order.id, m.id, a.productId, a.lineId);
+                                    setActionLine(null);
+                                    setActionReason("");
+                                  }}
+                                  className={`flex items-center gap-1.5 h-7 px-3 rounded-xl border text-[11px] font-semibold transition-colors ${
+                                    reasonOk
+                                      ? "border-zinc-200 text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa]"
+                                      : "border-zinc-100 text-zinc-300 cursor-not-allowed"
+                                  }`}
+                                >
+                                  <span className="font-bold">{m.publicCode}</span>
+                                  <span className="font-normal">{m.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
@@ -390,9 +476,10 @@ interface Props {
   machines: Machine[];
   isAdmin?: boolean;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
+  onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
 }
 
-export default function OrdersSection({ orders: initialOrders, products, machines, isAdmin, onAssign }: Props) {
+export default function OrdersSection({ orders: initialOrders, products, machines, isAdmin, onAssign, onUnassign }: Props) {
   const [orders, setOrders] = useState(initialOrders);
 
   useEffect(() => { setOrders(initialOrders); }, [initialOrders]);
@@ -513,6 +600,7 @@ export default function OrdersSection({ orders: initialOrders, products, machine
               onClose={() => setSelectedId(null)}
               onVoid={handleVoid}
               onAssign={onAssign}
+              onUnassign={onUnassign}
             />
           ) : (
             <motion.div
@@ -561,6 +649,7 @@ export default function OrdersSection({ orders: initialOrders, products, machine
                 onClose={() => setSelectedId(null)}
                 onVoid={handleVoid}
                 onAssign={onAssign}
+                onUnassign={onUnassign}
               />
             </motion.div>
           </>

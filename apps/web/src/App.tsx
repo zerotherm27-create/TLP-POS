@@ -27,7 +27,9 @@ export default function App() {
   const { role, isAdmin, toggleRole } = useRole();
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
   const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [adminTab, setAdminTab] = useState<"programs" | "packages">("programs");
+  const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines">("programs");
+  const [tubCleanThreshold, setTubCleanThreshold] = useState(50);
+  const [draftThreshold, setDraftThreshold] = useState("50");
   const { orders, updateOrder } = useOrders("b1", mockJobOrders);
 
   const handleAssign = async (orderId: string, machineId: string, productId: string, lineId: string) => {
@@ -76,6 +78,26 @@ export default function App() {
     );
   };
 
+  const handleUnassign = (orderId: string, lineId: string, machineId: string, reason?: string, mode?: "rework" | "reassign") => {
+    if (reason && mode) {
+      console.log(`[${new Date().toISOString()}] ${mode.toUpperCase()} — order ${orderId}, machine ${machineId}. Reason: ${reason}`);
+    }
+    setMachines((prev) =>
+      prev.map((m) => m.id === machineId ? { ...m, status: "online" as const, activeJobOrderId: undefined } : m)
+    );
+    const order = orders.find((o) => o.id === orderId);
+    if (order) {
+      const remaining = order.assignments.filter((a: { lineId: string }) => a.lineId !== lineId);
+      updateOrder({
+        ...order,
+        assignments: remaining,
+        status: remaining.length === 0 ? "queued" : "in_progress",
+        fulfillmentStage: remaining.length === 0 ? "queued" : order.fulfillmentStage,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  };
+
   const handleSectionChange = (s: Section) => {
     if (s === "admin" && !isAdmin) return;
     setSection(s);
@@ -120,13 +142,18 @@ export default function App() {
                   machines={machines}
                   isAdmin={isAdmin}
                   onAssign={handleAssign}
+                  onUnassign={handleUnassign}
                 />
               )}
               {section === "machines" && (
                 <MachineBoard
                   machines={machines}
                   isAdmin={isAdmin}
+                  threshold={tubCleanThreshold}
                   onMarkCleaned={handleMarkCleaned}
+                  orders={orders}
+                  onUnassign={handleUnassign}
+                  onAssign={handleAssign}
                 />
               )}
               {section === "transactions" && (
@@ -140,7 +167,7 @@ export default function App() {
                 <div className="flex flex-col gap-5">
                   {/* Tab switcher */}
                   <div className="flex gap-1 bg-zinc-100 p-1 rounded-xl w-fit">
-                    {(["programs", "packages"] as const).map((tab) => (
+                    {(["programs", "packages", "machines"] as const).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setAdminTab(tab)}
@@ -160,6 +187,74 @@ export default function App() {
                   )}
                   {adminTab === "packages" && (
                     <PackageBuilder products={products} packages={mockPackages} />
+                  )}
+                  {adminTab === "machines" && (
+                    <div className="flex flex-col gap-5">
+                      {/* Tub cleaning threshold */}
+                      <div className="bg-amber-50 border border-amber-200/70 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
+                        <div className="flex-1">
+                          <div className="text-[11px] font-bold text-amber-700 uppercase tracking-wider mb-0.5">Tub Cleaning Reminder</div>
+                          <div className="text-[12px] text-amber-600">
+                            Alert after every <strong>{tubCleanThreshold}</strong> loads per washer.
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <label className="text-[11px] text-amber-700 font-semibold">Every</label>
+                          <input
+                            type="number" min={1} max={500}
+                            value={draftThreshold}
+                            onChange={(e) => setDraftThreshold(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const n = parseInt(draftThreshold, 10);
+                                if (!isNaN(n) && n > 0) setTubCleanThreshold(n);
+                              }
+                            }}
+                            className="w-16 h-8 rounded-xl border border-amber-300 bg-white text-center text-sm font-bold text-amber-800 outline-none focus:ring-2 focus:ring-amber-400/50 tabular-nums"
+                          />
+                          <label className="text-[11px] text-amber-700 font-semibold">loads</label>
+                          <button
+                            onClick={() => { const n = parseInt(draftThreshold, 10); if (!isNaN(n) && n > 0) setTubCleanThreshold(n); }}
+                            className="h-8 px-3 text-[11px] font-bold text-white rounded-xl"
+                            style={{ background: "#d97706" }}
+                          >Save</button>
+                        </div>
+                      </div>
+
+                      {/* Per-machine cycle counts */}
+                      <div className="bg-white border border-zinc-100 rounded-2xl overflow-hidden" style={{ boxShadow: "0 2px 8px -4px rgba(0,0,0,0.05)" }}>
+                        <div className="px-5 py-3 border-b border-zinc-100">
+                          <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Washer Cycle Counts</div>
+                        </div>
+                        {machines.filter((m) => m.kind === "washer").map((m) => {
+                          const since = (m.cycleCount ?? 0) - (m.lastTubCleanCycle ?? 0);
+                          const due = since >= tubCleanThreshold;
+                          return (
+                            <div key={m.id} className="flex items-center justify-between px-5 py-3 border-b border-zinc-50 last:border-0">
+                              <div className="flex items-center gap-3">
+                                <span className="text-[11px] font-bold bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-lg tabular-nums">{m.publicCode}</span>
+                                <span className="text-sm text-zinc-700">{m.name}</span>
+                                {due && (
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">Clean due</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className={`text-sm font-bold tabular-nums ${due ? "text-amber-600" : "text-zinc-400"}`}>
+                                  {since} <span className="text-[10px] font-normal">loads since clean</span>
+                                </span>
+                                {due && (
+                                  <button
+                                    onClick={() => handleMarkCleaned(m.id)}
+                                    className="h-7 px-3 text-[11px] font-semibold text-white rounded-xl"
+                                    style={{ background: "#009eb5" }}
+                                  >Mark Cleaned</button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
