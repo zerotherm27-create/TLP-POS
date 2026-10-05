@@ -4,7 +4,8 @@ import {
   Search, Clock, ExternalLink, Phone, StickyNote,
   WashingMachine, Wind, X, ChevronRight, RotateCcw, ArrowLeftRight,
 } from "lucide-react";
-import type { JobOrder, Product, Machine, FulfillmentStage } from "@tlp/shared";
+import type { JobOrder, Product, Machine, FulfillmentStage, ServicePackage } from "@tlp/shared";
+import JobOrderForm from "../overview/JobOrderForm";
 import { formatPeso, formatTime, formatDateTime } from "../../lib/format";
 
 /* ── Stage config ── */
@@ -474,12 +475,15 @@ interface Props {
   orders: JobOrder[];
   products: Product[];
   machines: Machine[];
+  packages: ServicePackage[];
   isAdmin?: boolean;
+  showCreate?: boolean;
+  onCloseCreate?: () => void;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
 }
 
-export default function OrdersSection({ orders: initialOrders, products, machines, isAdmin, onAssign, onUnassign }: Props) {
+export default function OrdersSection({ orders: initialOrders, products, packages, machines, isAdmin, showCreate, onCloseCreate, onAssign, onUnassign }: Props) {
   const [orders, setOrders] = useState(initialOrders);
 
   useEffect(() => { setOrders(initialOrders); }, [initialOrders]);
@@ -587,10 +591,30 @@ export default function OrdersSection({ orders: initialOrders, products, machine
         </div>
       </div>
 
-      {/* ── Right: detail panel (desktop) ── */}
+      {/* ── Right: create form or detail panel (desktop) ── */}
       <div className="hidden lg:block sticky top-5">
         <AnimatePresence mode="wait">
-          {selected ? (
+          {showCreate ? (
+            <motion.div
+              key="create"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ type: "spring", stiffness: 320, damping: 28 }}
+              className="bg-white rounded-2xl border border-zinc-100 overflow-hidden"
+              style={{ boxShadow: "0 2px 12px -4px rgba(0,0,0,0.08)" }}
+            >
+              <div className="flex items-center justify-between px-5 pt-4 pb-0">
+                <span className="text-sm font-bold text-zinc-900">New Job Order</span>
+                {onCloseCreate && (
+                  <button onClick={onCloseCreate} className="w-7 h-7 flex items-center justify-center rounded-xl text-zinc-300 hover:text-zinc-500 hover:bg-zinc-50 transition-colors">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <JobOrderForm products={products} packages={packages} />
+            </motion.div>
+          ) : selected ? (
             <DetailPanel
               key={selected.id}
               order={selected}
@@ -618,7 +642,42 @@ export default function OrdersSection({ orders: initialOrders, products, machine
         </AnimatePresence>
       </div>
 
-      {/* ── Mobile: slide-up drawer ── */}
+      {/* ── Mobile: create form drawer ── */}
+      <AnimatePresence>
+        {showCreate && (
+          <>
+            <motion.div
+              key="create-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onCloseCreate}
+              className="lg:hidden fixed inset-0 bg-black/30 z-40"
+            />
+            <motion.div
+              key="create-drawer"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 340, damping: 32 }}
+              className="lg:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white overflow-auto"
+              style={{ maxHeight: "90dvh" }}
+            >
+              <div className="flex items-center justify-between px-5 pt-4 pb-0">
+                <span className="text-sm font-bold text-zinc-900">New Job Order</span>
+                {onCloseCreate && (
+                  <button onClick={onCloseCreate} className="w-7 h-7 flex items-center justify-center rounded-xl text-zinc-300 hover:text-zinc-500 transition-colors">
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+              <JobOrderForm products={products} packages={packages} />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Mobile: order detail drawer ── */}
       <AnimatePresence>
         {selected && (
           <>

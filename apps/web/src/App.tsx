@@ -31,6 +31,7 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [packages, setPackages] = useState(mockPackages);
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines">("programs");
+  const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [tubCleanThreshold, setTubCleanThreshold] = useState(50);
   const [draftThreshold, setDraftThreshold] = useState("50");
   const [confirmCleanId, setConfirmCleanId] = useState<string | null>(null);
@@ -132,7 +133,7 @@ export default function App() {
         <Topbar
           section={section}
           isAdmin={isAdmin}
-          onNewOrder={() => setSection("orders")}
+          onNewOrder={() => { setSection("orders"); setShowCreateOrder(true); }}
           onSyncLaundrobot={isAdmin ? async () => {
             const res = await fetch("/api/orders/pull", { method: "POST" });
             if (!res.ok) throw new Error(`sync failed: ${res.status}`);
@@ -162,8 +163,11 @@ export default function App() {
                 <OrdersSection
                   orders={orders}
                   products={products}
+                  packages={packages}
                   machines={machines}
                   isAdmin={isAdmin}
+                  showCreate={showCreateOrder}
+                  onCloseCreate={() => setShowCreateOrder(false)}
                   onAssign={handleAssign}
                   onUnassign={handleUnassign}
                 />
