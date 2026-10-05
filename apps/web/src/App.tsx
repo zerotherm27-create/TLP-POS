@@ -27,6 +27,7 @@ export default function App() {
   const { role, isAdmin, toggleRole } = useRole();
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
   const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [packages, setPackages] = useState(mockPackages);
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines">("programs");
   const [tubCleanThreshold, setTubCleanThreshold] = useState(50);
   const [draftThreshold, setDraftThreshold] = useState("50");
@@ -138,7 +139,7 @@ export default function App() {
                   orders={orders}
                   sales={mockSales}
                   products={products}
-                  packages={mockPackages}
+                  packages={packages}
                   isAdmin={isAdmin}
                 />
               )}
@@ -194,7 +195,7 @@ export default function App() {
                     <ProductManager products={products} onChange={setProducts} />
                   )}
                   {adminTab === "packages" && (
-                    <PackageBuilder products={products} packages={mockPackages} />
+                    <PackageBuilder products={products} packages={packages} onChange={setPackages} />
                   )}
                   {adminTab === "machines" && (
                     <div className="flex flex-col gap-5">

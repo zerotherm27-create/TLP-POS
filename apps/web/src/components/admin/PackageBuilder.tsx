@@ -7,10 +7,10 @@ import { formatPeso } from "../../lib/format";
 interface Props {
   products: Product[];
   packages: ServicePackage[];
+  onChange: (packages: ServicePackage[]) => void;
 }
 
-export default function PackageBuilder({ products, packages: initialPackages }: Props) {
-  const [packages, setPackages] = useState<ServicePackage[]>(initialPackages);
+export default function PackageBuilder({ products, packages, onChange }: Props) {
   const [pkgName, setPkgName] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -28,12 +28,12 @@ export default function PackageBuilder({ products, packages: initialPackages }: 
       services: selected,
       createdAt: new Date().toISOString(),
     };
-    setPackages((prev) => [newPkg, ...prev]);
+    onChange([newPkg, ...packages]);
     setPkgName("");
     setSelected([]);
   };
 
-  const remove = (id: string) => setPackages((prev) => prev.filter((p) => p.id !== id));
+  const remove = (id: string) => onChange(packages.filter((p) => p.id !== id));
 
   const totalForPackage = (serviceIds: string[]) =>
     serviceIds.reduce((sum, id) => {
