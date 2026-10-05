@@ -27,7 +27,7 @@ const NAV_ITEMS: NavItem[] = [
 interface Props {
   active: Section;
   isAdmin: boolean;
-  role: "cashier" | "admin";
+  role: "staff" | "admin";
   onChangeSection: (s: Section) => void;
   onToggleRole: () => void;
 }
@@ -113,7 +113,7 @@ export default function Sidebar({ active, isAdmin, role, onChangeSection, onTogg
               className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
               style={{ background: role === "admin" ? "#009eb5" : "#4a6d73" }}
             >
-              {role === "admin" ? "A" : "C"}
+              {role === "admin" ? "A" : "S"}
             </div>
             <span className="text-white/70 text-xs font-medium capitalize">{role}</span>
           </div>

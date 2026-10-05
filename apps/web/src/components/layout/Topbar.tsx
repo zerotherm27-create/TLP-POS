@@ -67,17 +67,19 @@ export default function Topbar({ section, isAdmin, onNewOrder, onSyncLaundrobot 
             <span className="hidden sm:inline">{syncLabel}</span>
           </button>
         )}
-        <button
-          onClick={onNewOrder}
-          className="h-8 flex items-center gap-1.5 px-3.5 text-[11px] font-bold text-white rounded-xl active:scale-[0.97] transition-all"
-          style={{
-            background: "#009eb5",
-            boxShadow: "0 2px 8px -2px rgba(0,158,181,0.45)",
-          }}
-        >
-          <Plus size={13} strokeWidth={2.5} />
-          <span>New Job Order</span>
-        </button>
+        {section === "orders" && (
+          <button
+            onClick={onNewOrder}
+            className="h-8 flex items-center gap-1.5 px-3.5 text-[11px] font-bold text-white rounded-xl active:scale-[0.97] transition-all"
+            style={{
+              background: "#009eb5",
+              boxShadow: "0 2px 8px -2px rgba(0,158,181,0.45)",
+            }}
+          >
+            <Plus size={13} strokeWidth={2.5} />
+            <span>New Job Order</span>
+          </button>
+        )}
       </div>
     </header>
   );

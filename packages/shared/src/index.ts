@@ -1,4 +1,4 @@
-export type Role = "admin" | "cashier";
+export type Role = "admin" | "staff";
 
 export type MachineKind = "washer" | "dryer";
 
