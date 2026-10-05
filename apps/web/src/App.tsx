@@ -8,7 +8,7 @@ import MachineBoard from "./components/machines/MachineBoard";
 import TransactionTable from "./components/transactions/TransactionTable";
 import PackageBuilder from "./components/admin/PackageBuilder";
 import ProductManager from "./components/admin/ProductManager";
-import JobQueue from "./components/overview/JobQueue";
+import OrdersSection from "./components/orders/OrdersSection";
 import { useRole } from "./hooks/useRole";
 import type { Machine, Product } from "@tlp/shared";
 import {
@@ -74,15 +74,12 @@ export default function App() {
                 />
               )}
               {section === "orders" && (
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
-                  <div
-                    className="bg-white rounded-2xl border border-zinc-100 p-5"
-                    style={{ boxShadow: "0 2px 12px -4px rgba(0,0,0,0.06)" }}
-                  >
-                    <p className="text-sm text-zinc-400">Full order management view coming soon.</p>
-                  </div>
-                  <JobQueue orders={mockJobOrders} products={mockProducts} />
-                </div>
+                <OrdersSection
+                  orders={mockJobOrders}
+                  products={products}
+                  machines={machines}
+                  isAdmin={isAdmin}
+                />
               )}
               {section === "machines" && (
                 <MachineBoard
