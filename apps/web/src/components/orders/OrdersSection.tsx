@@ -463,8 +463,8 @@ export default function OrdersSection({ orders: initialOrders, products, machine
         </div>
       </div>
 
-      {/* ── Right: detail panel ── */}
-      <div className="sticky top-5">
+      {/* ── Right: detail panel (desktop) ── */}
+      <div className="hidden lg:block sticky top-5">
         <AnimatePresence mode="wait">
           {selected ? (
             <DetailPanel
@@ -492,6 +492,43 @@ export default function OrdersSection({ orders: initialOrders, products, machine
           )}
         </AnimatePresence>
       </div>
+
+      {/* ── Mobile: slide-up drawer ── */}
+      <AnimatePresence>
+        {selected && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedId(null)}
+              className="lg:hidden fixed inset-0 bg-black/30 z-40"
+            />
+            {/* Drawer */}
+            <motion.div
+              key="drawer"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 340, damping: 32 }}
+              className="lg:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-hidden"
+              style={{ maxHeight: "85dvh" }}
+            >
+              <DetailPanel
+                order={selected}
+                products={products}
+                machines={machines}
+                isAdmin={isAdmin}
+                onClose={() => setSelectedId(null)}
+                onVoid={handleVoid}
+                onAssign={onAssign}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
