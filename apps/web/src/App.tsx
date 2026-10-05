@@ -30,6 +30,7 @@ export default function App() {
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines">("programs");
   const [tubCleanThreshold, setTubCleanThreshold] = useState(50);
   const [draftThreshold, setDraftThreshold] = useState("50");
+  const [confirmCleanId, setConfirmCleanId] = useState<string | null>(null);
   const { orders, updateOrder } = useOrders("b1", mockJobOrders);
 
   const handleAssign = async (orderId: string, machineId: string, productId: string, lineId: string) => {
@@ -250,11 +251,26 @@ export default function App() {
                                   {since} <span className="text-[10px] font-normal">loads since clean</span>
                                 </span>
                                 {due && (
-                                  <button
-                                    onClick={() => handleMarkCleaned(m.id)}
-                                    className="h-7 px-3 text-[11px] font-semibold text-white rounded-xl"
-                                    style={{ background: "#009eb5" }}
-                                  >Mark Cleaned</button>
+                                  confirmCleanId === m.id ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] text-amber-700 font-semibold">Tub clean done?</span>
+                                      <button
+                                        onClick={() => { handleMarkCleaned(m.id); setConfirmCleanId(null); }}
+                                        className="h-7 px-3 text-[11px] font-bold text-white rounded-xl"
+                                        style={{ background: "#009eb5" }}
+                                      >Yes</button>
+                                      <button
+                                        onClick={() => setConfirmCleanId(null)}
+                                        className="h-7 px-3 text-[11px] font-semibold text-zinc-500 bg-zinc-100 rounded-xl"
+                                      >No</button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setConfirmCleanId(m.id)}
+                                      className="h-7 px-3 text-[11px] font-semibold text-white rounded-xl"
+                                      style={{ background: "#009eb5" }}
+                                    >Mark Cleaned</button>
+                                  )
                                 )}
                               </div>
                             </div>

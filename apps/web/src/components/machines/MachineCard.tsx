@@ -282,6 +282,8 @@ interface Props {
 }
 
 export default function MachineCard({ machine, onSelect, tubCleaningDue, onMarkCleaned }: Props) {
+  const [confirming, setConfirming] = useState(false);
+
   const el =
     machine.status === "running" ? (
       <RunningCard machine={machine} />
@@ -294,7 +296,7 @@ export default function MachineCard({ machine, onSelect, tubCleaningDue, onMarkC
   return (
     <motion.div
       whileTap={{ scale: 0.97 }}
-      onClick={() => onSelect?.(machine)}
+      onClick={() => { setConfirming(false); onSelect?.(machine); }}
       className="relative"
     >
       {el}
@@ -309,20 +311,41 @@ export default function MachineCard({ machine, onSelect, tubCleaningDue, onMarkC
             transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
             style={{ boxShadow: "inset 0 0 0 2px #f59e0b" }}
           />
-          {/* Badge */}
-          <motion.button
-            className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider"
-            style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d" }}
-            animate={{ scale: [1, 1.06, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onMarkCleaned?.(machine.id);
-            }}
-            title={onMarkCleaned ? "Tap to mark as cleaned" : undefined}
-          >
-            TUB CLEAN
-          </motion.button>
+
+          {confirming ? (
+            /* Confirmation state — two buttons */
+            <div
+              className="absolute top-2 right-2 flex items-center gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => { onMarkCleaned?.(machine.id); setConfirming(false); }}
+                className="flex items-center gap-1 h-6 px-2 rounded-full text-[9px] font-bold bg-amber-500 text-white border border-amber-600"
+              >
+                Yes, done
+              </button>
+              <button
+                onClick={() => setConfirming(false)}
+                className="flex items-center gap-1 h-6 px-2 rounded-full text-[9px] font-bold bg-white text-zinc-500 border border-zinc-200"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            /* Default badge — first tap enters confirm mode */
+            <motion.button
+              className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider"
+              style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d" }}
+              animate={{ scale: [1, 1.06, 1] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onMarkCleaned) setConfirming(true);
+              }}
+            >
+              TUB CLEAN
+            </motion.button>
+          )}
         </>
       )}
     </motion.div>
