@@ -12,7 +12,12 @@ export default async function handler(req, res) {
       return;
     }
 
-    const branchId = new URL(req.url, "http://localhost").searchParams.get("branchId") ?? "b1";
+    const rawBranchId = new URL(req.url, "http://localhost").searchParams.get("branchId") ?? "b1";
+    if (!/^[A-Za-z0-9_-]{1,32}$/.test(rawBranchId)) {
+      sendJson(res, 400, { ok: false, message: "Invalid branchId." });
+      return;
+    }
+    const branchId = encodeURIComponent(rawBranchId);
 
     const rows = await supabaseRequest(
       `tlp_job_orders?branch_id=eq.${branchId}&order=created_at.desc&limit=100`
