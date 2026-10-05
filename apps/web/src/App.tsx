@@ -238,14 +238,19 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Per-machine cycle counts */}
+                      {/* Per-machine cycle counts — all machines */}
                       <div className="bg-white border border-zinc-100 rounded-2xl overflow-hidden" style={{ boxShadow: "0 2px 8px -4px rgba(0,0,0,0.05)" }}>
-                        <div className="px-5 py-3 border-b border-zinc-100">
-                          <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Washer Cycle Counts</div>
+                        <div className="px-5 py-3 border-b border-zinc-100 flex items-center justify-between">
+                          <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">Machine Cycle Counts</div>
+                          <div className="hidden sm:flex items-center gap-6 text-[10px] font-bold text-zinc-300 uppercase tracking-widest">
+                            <span className="w-20 text-right">Total</span>
+                            <span className="w-28 text-right">Since Clean</span>
+                            <span className="w-24" />
+                          </div>
                         </div>
-                        {machines.filter((m) => m.kind === "washer").map((m) => {
+                        {machines.map((m) => {
                           const since = (m.cycleCount ?? 0) - (m.lastTubCleanCycle ?? 0);
-                          const due = since >= tubCleanThreshold;
+                          const due = m.kind === "washer" && since >= tubCleanThreshold;
                           return (
                             <div key={m.id} className="flex items-center justify-between px-5 py-3 border-b border-zinc-50 last:border-0">
                               <div className="flex items-center gap-3">
@@ -255,11 +260,14 @@ export default function App() {
                                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">Clean due</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-3">
-                                <span className={`text-sm font-bold tabular-nums ${due ? "text-amber-600" : "text-zinc-400"}`}>
-                                  {since} <span className="text-[10px] font-normal">loads since clean</span>
+                              <div className="flex items-center gap-6">
+                                <span className="text-sm font-bold tabular-nums text-zinc-500 w-20 text-right">
+                                  {m.cycleCount ?? 0} <span className="text-[10px] font-normal text-zinc-300">total</span>
                                 </span>
-                                {due && (
+                                <span className={`text-sm font-bold tabular-nums w-28 text-right ${due ? "text-amber-600" : m.kind === "dryer" ? "text-zinc-200" : "text-zinc-400"}`}>
+                                  {m.kind === "washer" ? <>{since} <span className="text-[10px] font-normal">since clean</span></> : <span className="text-[10px] font-normal text-zinc-300">—</span>}
+                                </span>
+                                {due && m.kind === "washer" && (
                                   confirmCleanId === m.id ? (
                                     <div className="flex items-center gap-1.5">
                                       <span className="text-[11px] text-amber-700 font-semibold">Tub clean done?</span>
