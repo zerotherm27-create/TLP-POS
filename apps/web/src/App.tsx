@@ -122,7 +122,15 @@ export default function App() {
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <Topbar section={section} isAdmin={isAdmin} />
+        <Topbar
+          section={section}
+          isAdmin={isAdmin}
+          onNewOrder={() => setSection("orders")}
+          onSyncLaundrobot={isAdmin ? async () => {
+            const res = await fetch("/api/orders/pull", { method: "POST" });
+            if (!res.ok) throw new Error(`sync failed: ${res.status}`);
+          } : undefined}
+        />
 
         <main className="flex-1 px-4 md:px-6 py-5 pb-24 md:pb-6 overflow-x-hidden">
           <AnimatePresence mode="wait">
