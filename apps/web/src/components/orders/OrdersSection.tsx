@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Clock, ExternalLink, Phone, StickyNote,
@@ -118,6 +118,7 @@ function DetailPanel({
   isAdmin,
   onClose,
   onVoid,
+  onAssign,
 }: {
   order: JobOrder;
   products: Product[];
@@ -125,10 +126,15 @@ function DetailPanel({
   isAdmin?: boolean;
   onClose: () => void;
   onVoid: (id: string) => void;
+  onAssign?: (orderId: string, machineId: string, productId: string) => void;
 }) {
   const stage = STAGES[order.fulfillmentStage] ?? STAGES.queued;
   const services = orderServices(order, products);
   const isActive = order.status !== "completed" && order.status !== "voided";
+
+  const assignedProductIds = new Set(order.assignments.map((a) => a.productId));
+  const unassignedServices = services.filter(({ line }) => !assignedProductIds.has(line.productId));
+  const canAssign = isActive && unassignedServices.length > 0 && onAssign;
 
   return (
     <motion.div
@@ -248,6 +254,52 @@ function DetailPanel({
           </div>
         )}
 
+        {/* Assign machine */}
+        {canAssign && (
+          <div>
+            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Assign Machine</div>
+            <div className="flex flex-col gap-3">
+              {unassignedServices.map(({ line, product }) => {
+                if (!product) return null;
+                const available = machines.filter(
+                  (m) => m.kind === product.machineKind && m.status === "online"
+                );
+                return (
+                  <div key={line.productId}>
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <div className="w-5 h-5 rounded-md bg-zinc-50 flex items-center justify-center">
+                        {product.machineKind === "washer"
+                          ? <WashingMachine size={11} className="text-zinc-400" strokeWidth={1.8} />
+                          : <Wind size={11} className="text-zinc-400" strokeWidth={1.8} />
+                        }
+                      </div>
+                      <span className="text-[11px] text-zinc-500">{product.name}</span>
+                    </div>
+                    {available.length === 0 ? (
+                      <p className="text-[11px] text-zinc-300 px-1">
+                        No available {product.machineKind}s
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {available.map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => onAssign(order.id, m.id, line.productId)}
+                            className="flex items-center gap-1.5 h-7 px-3 rounded-xl border border-zinc-200 text-[11px] font-semibold text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa] transition-colors"
+                          >
+                            <span className="font-bold">{m.publicCode}</span>
+                            <span className="text-zinc-400 font-normal">{m.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Timestamps */}
         <div className="flex flex-col gap-1">
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Timeline</div>
@@ -289,10 +341,13 @@ interface Props {
   products: Product[];
   machines: Machine[];
   isAdmin?: boolean;
+  onAssign?: (orderId: string, machineId: string, productId: string) => void;
 }
 
-export default function OrdersSection({ orders: initialOrders, products, machines, isAdmin }: Props) {
+export default function OrdersSection({ orders: initialOrders, products, machines, isAdmin, onAssign }: Props) {
   const [orders, setOrders] = useState(initialOrders);
+
+  useEffect(() => { setOrders(initialOrders); }, [initialOrders]);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -409,6 +464,7 @@ export default function OrdersSection({ orders: initialOrders, products, machine
               isAdmin={isAdmin}
               onClose={() => setSelectedId(null)}
               onVoid={handleVoid}
+              onAssign={onAssign}
             />
           ) : (
             <motion.div

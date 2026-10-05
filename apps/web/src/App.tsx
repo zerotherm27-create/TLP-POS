@@ -10,6 +10,7 @@ import PackageBuilder from "./components/admin/PackageBuilder";
 import ProductManager from "./components/admin/ProductManager";
 import OrdersSection from "./components/orders/OrdersSection";
 import { useRole } from "./hooks/useRole";
+import { useOrders } from "./hooks/useOrders";
 import type { Machine, Product } from "@tlp/shared";
 import {
   mockMachines,
@@ -27,6 +28,42 @@ export default function App() {
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [adminTab, setAdminTab] = useState<"programs" | "packages">("programs");
+  const { orders, updateOrder } = useOrders("b1", mockJobOrders);
+
+  const handleAssign = async (orderId: string, machineId: string, productId: string) => {
+    try {
+      const res = await fetch("/api/orders/assign", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ orderId, machineId, productId }),
+      });
+      const data = await res.json();
+      if (data.ok && data.jobOrder) {
+        updateOrder(data.jobOrder);
+      }
+    } catch {
+      // API unavailable — update locally only
+    }
+    // Optimistic local update for machines
+    setMachines((prev) =>
+      prev.map((m) =>
+        m.id === machineId
+          ? { ...m, status: "running", activeJobOrderId: orderId }
+          : m
+      )
+    );
+    // Optimistic local update for orders (for when API is unavailable)
+    updateOrder({
+      ...orders.find((o) => o.id === orderId)!,
+      status: "in_progress",
+      fulfillmentStage: "washing",
+      assignments: [
+        ...(orders.find((o) => o.id === orderId)?.assignments ?? []),
+        { machineId, productId, assignedAt: new Date().toISOString() },
+      ],
+      updatedAt: new Date().toISOString(),
+    });
+  };
 
   const handleMarkCleaned = (machineId: string) => {
     setMachines((prev) =>
@@ -66,7 +103,7 @@ export default function App() {
               {section === "overview" && (
                 <OverviewSection
                   machines={machines}
-                  orders={mockJobOrders}
+                  orders={orders}
                   sales={mockSales}
                   products={products}
                   packages={mockPackages}
@@ -75,10 +112,11 @@ export default function App() {
               )}
               {section === "orders" && (
                 <OrdersSection
-                  orders={mockJobOrders}
+                  orders={orders}
                   products={products}
                   machines={machines}
                   isAdmin={isAdmin}
+                  onAssign={handleAssign}
                 />
               )}
               {section === "machines" && (

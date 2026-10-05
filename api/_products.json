@@ -1,0 +1,8 @@
+[
+  { "id": "p1", "machineKind": "washer", "name": "10 min", "durationMinutes": 10, "priceCents": 0, "pulse": 1, "pushDelayMs": 500 },
+  { "id": "p2", "machineKind": "washer", "name": "35 min", "durationMinutes": 35, "priceCents": 0, "pulse": 1, "pushDelayMs": 500 },
+  { "id": "p3", "machineKind": "washer", "name": "45 min", "durationMinutes": 45, "priceCents": 0, "pulse": 2, "pushDelayMs": 500 },
+  { "id": "p4", "machineKind": "dryer",  "name": "10 min", "durationMinutes": 10, "priceCents": 0, "pulse": 1, "pushDelayMs": 500 },
+  { "id": "p5", "machineKind": "dryer",  "name": "30 min", "durationMinutes": 30, "priceCents": 0, "pulse": 1, "pushDelayMs": 500 },
+  { "id": "p6", "machineKind": "dryer",  "name": "40 min", "durationMinutes": 40, "priceCents": 0, "pulse": 2, "pushDelayMs": 500 }
+]
