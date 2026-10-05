@@ -1,25 +1,12 @@
 import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
+// Stage is driven by the most recently assigned machine kind.
+// Washer assigned → "washing"; dryer assigned (after washer done) → "drying".
 const computeStage = (order, products) => {
   if (order.assignments.length === 0) return "queued";
-
-  const assignedProductIds = new Set(order.assignments.map((a) => a.productId));
-  const allAssigned = order.services.every((s) => assignedProductIds.has(s.productId));
-
-  if (!allAssigned) return "washing";
-
-  const hasWasher = order.assignments.some((a) => {
-    const p = products.find((p) => p.id === a.productId);
-    return p?.machineKind === "washer";
-  });
-  const hasDryer = order.assignments.some((a) => {
-    const p = products.find((p) => p.id === a.productId);
-    return p?.machineKind === "dryer";
-  });
-
-  if (hasWasher && !hasDryer) return "washing";
-  if (hasDryer && !hasWasher) return "drying";
-  return "washing";
+  const last = order.assignments[order.assignments.length - 1];
+  const product = products.find((p) => p.id === last.productId);
+  return product?.machineKind === "dryer" ? "drying" : "washing";
 };
 
 const requireApiToken = (req, res) => {

@@ -135,7 +135,21 @@ function DetailPanel({
     sum + (line.priceCents ?? (product?.priceCents ?? 0) * line.quantity), 0);
 
   const assignedProductIds = new Set(order.assignments.map((a) => a.productId));
-  const unassignedServices = services.filter(({ line }) => !assignedProductIds.has(line.productId));
+
+  // Washer assignment is "done" when the assigned machine is no longer running
+  const washerAssignment = order.assignments.find((a) => {
+    const p = products.find((p) => p.id === a.productId);
+    return p?.machineKind === "washer";
+  });
+  const washerMachine = washerAssignment ? machines.find((m) => m.id === washerAssignment.machineId) : undefined;
+  const washerDone = !washerAssignment || washerMachine?.status !== "running";
+
+  const unassignedServices = services.filter(({ line, product }) => {
+    if (assignedProductIds.has(line.productId)) return false;
+    // Hold dryer assignment until washing is done
+    if (product?.machineKind === "dryer" && !washerDone) return false;
+    return true;
+  });
   const canAssign = isActive && unassignedServices.length > 0 && onAssign;
 
   return (
