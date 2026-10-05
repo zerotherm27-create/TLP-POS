@@ -43,20 +43,30 @@ export const fetchLaundrobotOrders = async () => {
 //   contactNumber?: string,
 //   notes?: string,
 //   orderUrl?: string,
-//   services: [{ kind: "washer"|"dryer", durationMinutes: number, quantity: number }]
+//   services: [{ kind: string, durationMinutes?: number, quantity?: number, priceCents?: number }]
 // }
+// Returns null when the order contains no machine-wash/dry services (e.g. handwash, dryclean).
 export const mapLaundrobotOrder = (rawOrder) => {
-  const services = (rawOrder.services ?? []).map((s) => {
+  // Only import services that map to a TLP machine product (washer/dryer).
+  // Other kinds (handwash, dryclean, fold, etc.) are silently skipped.
+  const services = (rawOrder.services ?? []).flatMap((s) => {
     const product = products.find(
       (p) => p.machineKind === s.kind && p.durationMinutes === s.durationMinutes
     );
-    if (!product) {
-      throw new Error(
-        `No product found for ${s.kind} ${s.durationMinutes}min. Update api/_products.json.`
-      );
-    }
-    return { productId: product.id, quantity: s.quantity ?? 1, priceCents: s.priceCents };
+    if (!product) return []; // not a machine service — skip
+
+    // Expand quantity into one line per load so each load gets its own machine assignment.
+    const count = s.quantity ?? 1;
+    const pricePerLoad = s.priceCents != null ? Math.round(s.priceCents / count) : undefined;
+    return Array.from({ length: count }, () => ({
+      lineId: crypto.randomUUID(),
+      productId: product.id,
+      quantity: 1,
+      priceCents: pricePerLoad,
+    }));
   });
+
+  if (services.length === 0) return null; // nothing to assign in TLP POS
 
   return {
     externalOrderId: String(rawOrder.id),

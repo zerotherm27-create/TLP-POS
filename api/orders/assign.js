@@ -25,14 +25,15 @@ export default async function handler(req, res) {
     if (!ensurePost(req, res)) return;
     if (!requireApiToken(req, res)) return;
 
-    const { orderId, machineId, productId } = await readJson(req);
-    if (!orderId || !machineId || !productId) {
-      sendJson(res, 400, { ok: false, message: "orderId, machineId, and productId are required." });
+    const { orderId, machineId, productId, lineId } = await readJson(req);
+    if (!orderId || !machineId || !productId || !lineId) {
+      sendJson(res, 400, { ok: false, message: "orderId, machineId, productId, and lineId are required." });
       return;
     }
 
     const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
-    if (!ID_RE.test(orderId) || !ID_RE.test(machineId) || !ID_RE.test(productId)) {
+    const UUID_RE = /^[0-9a-f-]{36}$/;
+    if (!ID_RE.test(orderId) || !ID_RE.test(machineId) || !ID_RE.test(productId) || !UUID_RE.test(lineId)) {
       sendJson(res, 400, { ok: false, message: "Invalid id format." });
       return;
     }
@@ -51,14 +52,19 @@ export default async function handler(req, res) {
       return;
     }
 
-    const already = order.assignments.find((a) => a.machineId === machineId);
-    if (already) {
+    const alreadyLine = order.assignments.find((a) => a.lineId === lineId);
+    if (alreadyLine) {
+      sendJson(res, 400, { ok: false, message: "This load is already assigned to a machine." });
+      return;
+    }
+    const alreadyMachine = order.assignments.find((a) => a.machineId === machineId);
+    if (alreadyMachine) {
       sendJson(res, 400, { ok: false, message: "Machine already assigned to this order." });
       return;
     }
 
     const now = new Date().toISOString();
-    const newAssignment = { machineId, productId, assignedAt: now };
+    const newAssignment = { lineId, machineId, productId, assignedAt: now };
     order.assignments = [...order.assignments, newAssignment];
     order.status = "in_progress";
     order.updatedAt = now;

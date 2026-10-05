@@ -126,7 +126,7 @@ function DetailPanel({
   isAdmin?: boolean;
   onClose: () => void;
   onVoid: (id: string) => void;
-  onAssign?: (orderId: string, machineId: string, productId: string) => void;
+  onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
 }) {
   const stage = STAGES[order.fulfillmentStage] ?? STAGES.queued;
   const services = orderServices(order, products);
@@ -134,23 +134,33 @@ function DetailPanel({
   const orderTotal = services.reduce((sum, { line, product }) =>
     sum + (line.priceCents ?? (product?.priceCents ?? 0) * line.quantity), 0);
 
-  const assignedProductIds = new Set(order.assignments.map((a) => a.productId));
+  const assignedLineIds = new Set(order.assignments.map((a) => a.lineId));
 
-  // Washer assignment is "done" when the assigned machine is no longer running
-  const washerAssignment = order.assignments.find((a) => {
+  // All washers done when none of their machines is still running
+  const washerAssignments = order.assignments.filter((a) => {
     const p = products.find((p) => p.id === a.productId);
     return p?.machineKind === "washer";
   });
-  const washerMachine = washerAssignment ? machines.find((m) => m.id === washerAssignment.machineId) : undefined;
-  const washerDone = !washerAssignment || washerMachine?.status !== "running";
+  const anyWasherRunning = washerAssignments.some(
+    (a) => machines.find((m) => m.id === a.machineId)?.status === "running"
+  );
+  const washersDone = washerAssignments.length === 0 || !anyWasherRunning;
 
   const unassignedServices = services.filter(({ line, product }) => {
-    if (assignedProductIds.has(line.productId)) return false;
-    // Hold dryer assignment until washing is done
-    if (product?.machineKind === "dryer" && !washerDone) return false;
+    if (assignedLineIds.has(line.lineId)) return false;
+    // Hold dryer assignment until all washers are done
+    if (product?.machineKind === "dryer" && !washersDone) return false;
     return true;
   });
   const canAssign = isActive && unassignedServices.length > 0 && onAssign;
+
+  // Load numbers per productId (for "Load 1 / Load 2" labels on multi-load orders)
+  const loadCounters: Record<string, number> = {};
+  const loadNumbers = services.map(({ line }) => {
+    loadCounters[line.productId] = (loadCounters[line.productId] ?? 0) + 1;
+    return loadCounters[line.productId];
+  });
+  const hasMultipleLoads = Object.values(loadCounters).some((c) => c > 1);
 
   return (
     <motion.div
@@ -224,10 +234,13 @@ function DetailPanel({
         <div>
           <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Services</div>
           <div className="flex flex-col gap-1.5">
-            {services.map(({ line, product }) => {
+            {services.map(({ line, product }, idx) => {
               const linePrice = line.priceCents ?? (product?.priceCents ?? 0) * line.quantity;
+              const loadNum = loadNumbers[idx];
+              const assigned = order.assignments.find((a) => a.lineId === line.lineId);
+              const assignedMachine = assigned ? machines.find((m) => m.id === assigned.machineId) : undefined;
               return (
-                <div key={line.productId} className="flex items-center justify-between">
+                <div key={line.lineId} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-lg bg-zinc-50 flex items-center justify-center">
                       {product?.machineKind === "washer"
@@ -235,9 +248,14 @@ function DetailPanel({
                         : <Wind size={12} className="text-zinc-400" strokeWidth={1.8} />
                       }
                     </div>
-                    <span className="text-sm text-zinc-700">{product?.name ?? line.productId}</span>
-                    {line.quantity > 1 && (
-                      <span className="text-xs text-zinc-400">×{line.quantity}</span>
+                    <span className="text-sm text-zinc-700">
+                      {product?.name ?? line.productId}
+                      {hasMultipleLoads && <span className="text-zinc-400 ml-1">· Load {loadNum}</span>}
+                    </span>
+                    {assignedMachine && (
+                      <span className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">
+                        {assignedMachine.publicCode}
+                      </span>
                     )}
                   </div>
                   <span className="text-sm font-semibold text-zinc-700">
@@ -289,8 +307,10 @@ function DetailPanel({
                 const available = machines.filter(
                   (m) => m.kind === product.machineKind && m.status === "online"
                 );
+                const serviceIdx = services.findIndex((s) => s.line.lineId === line.lineId);
+                const loadNum = loadNumbers[serviceIdx];
                 return (
-                  <div key={line.productId}>
+                  <div key={line.lineId}>
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <div className="w-5 h-5 rounded-md bg-zinc-50 flex items-center justify-center">
                         {product.machineKind === "washer"
@@ -298,7 +318,10 @@ function DetailPanel({
                           : <Wind size={11} className="text-zinc-400" strokeWidth={1.8} />
                         }
                       </div>
-                      <span className="text-[11px] text-zinc-500">{product.name}</span>
+                      <span className="text-[11px] text-zinc-500">
+                        {product.name}
+                        {hasMultipleLoads && <span className="text-zinc-300 ml-1">· Load {loadNum}</span>}
+                      </span>
                     </div>
                     {available.length === 0 ? (
                       <p className="text-[11px] text-zinc-300 px-1">
@@ -309,7 +332,7 @@ function DetailPanel({
                         {available.map((m) => (
                           <button
                             key={m.id}
-                            onClick={() => onAssign(order.id, m.id, line.productId)}
+                            onClick={() => onAssign(order.id, m.id, line.productId, line.lineId)}
                             className="flex items-center gap-1.5 h-7 px-3 rounded-xl border border-zinc-200 text-[11px] font-semibold text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa] transition-colors"
                           >
                             <span className="font-bold">{m.publicCode}</span>
@@ -366,7 +389,7 @@ interface Props {
   products: Product[];
   machines: Machine[];
   isAdmin?: boolean;
-  onAssign?: (orderId: string, machineId: string, productId: string) => void;
+  onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
 }
 
 export default function OrdersSection({ orders: initialOrders, products, machines, isAdmin, onAssign }: Props) {

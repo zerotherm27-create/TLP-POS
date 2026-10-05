@@ -26,8 +26,8 @@ export const mockJobOrders: JobOrder[] = [
   {
     id: "jo1", branchId: "b1", source: "tlp_pos", orderNumber: "TLP-0081",
     customerName: "Reyna Dela Cruz", contactNumber: "+63 917 384-2019",
-    services: [{ productId: "p2", quantity: 1 }],
-    assignments: [{ machineId: "m1", productId: "p2", assignedAt: new Date(Date.now() - 26 * 60000).toISOString() }],
+    services: [{ lineId: "l1a", productId: "p2", quantity: 1 }],
+    assignments: [{ lineId: "l1a", machineId: "m1", productId: "p2", assignedAt: new Date(Date.now() - 26 * 60000).toISOString() }],
     status: "in_progress", paymentStatus: "paid", fulfillmentStage: "washing",
     createdAt: new Date(Date.now() - 30 * 60000).toISOString(),
     updatedAt: new Date(Date.now() - 26 * 60000).toISOString(),
@@ -35,17 +35,21 @@ export const mockJobOrders: JobOrder[] = [
   {
     id: "jo2", branchId: "b1", source: "tlp_pos", orderNumber: "TLP-0082",
     customerName: "Marco Villanueva", contactNumber: "+63 912 847-3301",
-    services: [{ productId: "p3", quantity: 1 }],
-    assignments: [{ machineId: "m3", productId: "p3", assignedAt: new Date(Date.now() - 42 * 60000).toISOString() }],
+    services: [{ lineId: "l2a", productId: "p3", quantity: 1 }],
+    assignments: [{ lineId: "l2a", machineId: "m3", productId: "p3", assignedAt: new Date(Date.now() - 42 * 60000).toISOString() }],
     status: "in_progress", paymentStatus: "paid", fulfillmentStage: "washing",
     createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
     updatedAt: new Date(Date.now() - 42 * 60000).toISOString(),
   },
   {
+    // 2-load LaundroBot order: each load has its own lineId and machine assignment
     id: "jo3", branchId: "b1", source: "laundrobot", orderNumber: "LB-4471",
     customerName: "Liza Ortega", contactNumber: "+63 918 221-5590",
-    services: [{ productId: "p5", quantity: 1, priceCents: 6000 }],
-    assignments: [{ machineId: "m6", productId: "p5", assignedAt: new Date(Date.now() - 5 * 60000).toISOString() }],
+    services: [
+      { lineId: "l3a", productId: "p5", quantity: 1, priceCents: 6000 },
+      { lineId: "l3b", productId: "p5", quantity: 1, priceCents: 6000 },
+    ],
+    assignments: [{ lineId: "l3a", machineId: "m6", productId: "p5", assignedAt: new Date(Date.now() - 5 * 60000).toISOString() }],
     status: "in_progress", paymentStatus: "paid", fulfillmentStage: "drying",
     createdAt: new Date(Date.now() - 60 * 60000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 60000).toISOString(),
@@ -53,8 +57,8 @@ export const mockJobOrders: JobOrder[] = [
   {
     id: "jo4", branchId: "b1", source: "tlp_pos", orderNumber: "TLP-0083",
     customerName: "Benito Ramos",
-    services: [{ productId: "p6", quantity: 1 }],
-    assignments: [{ machineId: "m8", productId: "p6", assignedAt: new Date(Date.now() - 18 * 60000).toISOString() }],
+    services: [{ lineId: "l4a", productId: "p6", quantity: 1 }],
+    assignments: [{ lineId: "l4a", machineId: "m8", productId: "p6", assignedAt: new Date(Date.now() - 18 * 60000).toISOString() }],
     status: "in_progress", paymentStatus: "paid", fulfillmentStage: "drying",
     createdAt: new Date(Date.now() - 20 * 60000).toISOString(),
     updatedAt: new Date(Date.now() - 18 * 60000).toISOString(),
@@ -62,7 +66,7 @@ export const mockJobOrders: JobOrder[] = [
   {
     id: "jo5", branchId: "b1", source: "tlp_pos", orderNumber: "TLP-0080",
     customerName: "Carina Fuentes", contactNumber: "+63 919 771-4482",
-    services: [{ productId: "p2", quantity: 1 }],
+    services: [{ lineId: "l5a", productId: "p2", quantity: 1 }],
     assignments: [],
     status: "queued", paymentStatus: "paid", fulfillmentStage: "queued",
     createdAt: new Date(Date.now() - 5 * 60000).toISOString(),

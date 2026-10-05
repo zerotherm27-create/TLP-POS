@@ -72,12 +72,14 @@ export interface SaleLine {
 }
 
 export interface ServiceLine {
+  lineId: string;        // unique per line; multi-load orders have one line per load
   productId: string;
-  quantity: number;
-  priceCents?: number; // set by LaundroBot at booking time; absent for TLP walk-in orders
+  quantity: number;      // always 1 after expansion at import
+  priceCents?: number;   // set by LaundroBot at booking time; absent for TLP walk-in orders
 }
 
 export interface MachineAssignment {
+  lineId: string;        // references ServiceLine.lineId
   machineId: string;
   productId: string;
   assignedAt: string;

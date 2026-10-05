@@ -33,6 +33,11 @@ export default async function handler(req, res) {
 
     for (const rawOrder of rawOrders) {
       const mapped = mapLaundrobotOrder(rawOrder);
+      if (!mapped) {
+        // Order has no machine-wash/dry services (handwash, dryclean, etc.) — skip
+        skipped.push(String(rawOrder.id));
+        continue;
+      }
       if (existingIds.has(mapped.externalOrderId)) {
         skipped.push(mapped.externalOrderId);
         continue;

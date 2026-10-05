@@ -30,12 +30,12 @@ export default function App() {
   const [adminTab, setAdminTab] = useState<"programs" | "packages">("programs");
   const { orders, updateOrder } = useOrders("b1", mockJobOrders);
 
-  const handleAssign = async (orderId: string, machineId: string, productId: string) => {
+  const handleAssign = async (orderId: string, machineId: string, productId: string, lineId: string) => {
     try {
       const res = await fetch("/api/orders/assign", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ orderId, machineId, productId }),
+        body: JSON.stringify({ orderId, machineId, productId, lineId }),
       });
       const data = await res.json();
       if (data.ok && data.jobOrder) {
@@ -53,16 +53,19 @@ export default function App() {
       )
     );
     // Optimistic local update for orders (for when API is unavailable)
-    updateOrder({
-      ...orders.find((o) => o.id === orderId)!,
-      status: "in_progress",
-      fulfillmentStage: "washing",
-      assignments: [
-        ...(orders.find((o) => o.id === orderId)?.assignments ?? []),
-        { machineId, productId, assignedAt: new Date().toISOString() },
-      ],
-      updatedAt: new Date().toISOString(),
-    });
+    const order = orders.find((o) => o.id === orderId);
+    if (order) {
+      const newAssignment = { lineId, machineId, productId, assignedAt: new Date().toISOString() };
+      const allAssigned = [...order.assignments, newAssignment];
+      const lastProduct = mockProducts.find((p) => p.id === productId);
+      updateOrder({
+        ...order,
+        status: "in_progress",
+        fulfillmentStage: lastProduct?.machineKind === "dryer" ? "drying" : "washing",
+        assignments: allAssigned,
+        updatedAt: new Date().toISOString(),
+      });
+    }
   };
 
   const handleMarkCleaned = (machineId: string) => {
