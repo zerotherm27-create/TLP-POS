@@ -1,20 +1,36 @@
+import { createRequire } from "module";
 import { buildOrderBundle, mapLaundrobotOrder, persistOrderBundle } from "../_laundrobot.js";
 import { ensurePost, readJson, sendJson, supabaseRequest } from "../_supabase.js";
 
-const requireImportToken = (req) => {
+const _require = createRequire(import.meta.url);
+const crypto = _require("crypto");
+
+const requireImportToken = (req, res) => {
   const expected = process.env.LAUNDROBOT_IMPORT_TOKEN;
-  if (!expected) return;
-  const received = req.headers.authorization?.replace(/^Bearer\s+/i, "");
-  if (received !== expected) {
-    throw new Error("Invalid LaundroBot import token.");
+  if (!expected) {
+    sendJson(res, 500, { ok: false, message: "LAUNDROBOT_IMPORT_TOKEN is not configured." });
+    return false;
   }
+  const received = req.headers.authorization?.replace(/^Bearer\s+/i, "") ?? "";
+  let valid = false;
+  try {
+    const a = Buffer.from(expected, "utf8");
+    const b = Buffer.from(received, "utf8");
+    valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch {
+    valid = false;
+  }
+  if (!valid) {
+    sendJson(res, 401, { ok: false, message: "Unauthorized." });
+    return false;
+  }
+  return true;
 };
 
 export default async function handler(req, res) {
   try {
     if (!ensurePost(req, res)) return;
-
-    requireImportToken(req);
+    if (!requireImportToken(req, res)) return;
 
     const body = await readJson(req);
     // LaundroBot sends: { id, customerName, contactNumber?, notes?, services: [{kind, durationMinutes, quantity, priceCents}] }
