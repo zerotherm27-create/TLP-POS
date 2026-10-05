@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "./components/layout/Sidebar";
 import BottomNav, { type Section } from "./components/layout/BottomNav";
+import AdminPinModal from "./components/layout/AdminPinModal";
 import Topbar from "./components/layout/Topbar";
 import OverviewSection from "./components/overview/OverviewSection";
 import MachineBoard from "./components/machines/MachineBoard";
@@ -24,7 +25,8 @@ const spring = { type: "spring" as const, stiffness: 320, damping: 30 };
 
 export default function App() {
   const [section, setSection] = useState<Section>("overview");
-  const { role, isAdmin, toggleRole } = useRole();
+  const { role, isAdmin, elevateToAdmin, demote } = useRole();
+  const [pinOpen, setPinOpen] = useState(false);
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [packages, setPackages] = useState(mockPackages);
@@ -113,12 +115,17 @@ export default function App() {
 
   return (
     <div className="flex min-h-[100dvh] bg-[#f4f6f8]">
+      <AdminPinModal
+        open={pinOpen}
+        onSuccess={() => { elevateToAdmin(); setPinOpen(false); }}
+        onCancel={() => setPinOpen(false)}
+      />
       <Sidebar
         active={section}
         isAdmin={isAdmin}
         role={role}
         onChangeSection={handleSectionChange}
-        onToggleRole={toggleRole}
+        onToggleRole={() => isAdmin ? demote() : setPinOpen(true)}
       />
 
       <div className="flex-1 flex flex-col min-w-0">

@@ -3,7 +3,8 @@ import type { Role } from "@tlp/shared";
 
 export function useRole() {
   const [role, setRole] = useState<Role>("cashier");
-  const toggleRole = () => setRole((r) => (r === "cashier" ? "admin" : "cashier"));
   const isAdmin = role === "admin";
-  return { role, setRole, toggleRole, isAdmin };
+  const elevateToAdmin = () => setRole("admin");
+  const demote = () => setRole("cashier");
+  return { role, isAdmin, elevateToAdmin, demote };
 }
