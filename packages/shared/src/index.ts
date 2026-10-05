@@ -46,7 +46,8 @@ export interface Machine {
   activeJobOrderId?: string;
   activeSaleId?: string;
   customerName?: string;
-  remainingMinutes?: number;
+  remainingMinutes?: number;  // total cycle duration (minutes); set at assignment
+  startedAt?: string;         // ISO timestamp when machine physically activated; absent = pending
   lastSeenAt?: string;
   cycleCount?: number;
   totalRunMinutes?: number;

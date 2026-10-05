@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MachineCard from "./MachineCard";
 import type { Machine, JobOrder } from "@tlp/shared";
-import { WashingMachine, Wind, Zap, CheckCircle2, WifiOff, AlertTriangle, X, RotateCcw, ArrowLeftRight } from "lucide-react";
+import { WashingMachine, Wind, Zap, CheckCircle2, WifiOff, AlertTriangle, X, RotateCcw, ArrowLeftRight, Play } from "lucide-react";
 
 /* ── Stat chip ── */
 function StatChip({
@@ -49,9 +49,10 @@ interface Props {
   orders?: JobOrder[];
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
+  onStartMachine?: (machineId: string) => void;
 }
 
-export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, onUnassign, onAssign }: Props) {
+export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, onUnassign, onAssign, onStartMachine }: Props) {
   const [activeMachine, setActiveMachine] = useState<Machine | null>(null);
   const [sheetReason, setSheetReason] = useState("");
 
@@ -68,7 +69,7 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
   const dueCount = machines.filter(isDue).length;
 
   const handleCardSelect = (m: Machine) => {
-    if (m.status === "running" && orders && onUnassign && onAssign) {
+    if (m.status === "running" && (onStartMachine || (orders && onUnassign && onAssign))) {
       setActiveMachine(m);
       setSheetReason("");
     }
@@ -98,7 +99,7 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
         machine={m}
         tubCleaningDue={isDue(m)}
         onMarkCleaned={isAdmin ? onMarkCleaned : undefined}
-        onSelect={m.status === "running" && orders && onUnassign && onAssign ? handleCardSelect : undefined}
+        onSelect={m.status === "running" ? handleCardSelect : undefined}
       />
     </motion.div>
   );
@@ -198,7 +199,7 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
 
       {/* ── Action sheet overlay (machine card tap) ── */}
       <AnimatePresence>
-        {activeMachine && activeOrder && activeAssignment && onUnassign && onAssign && (
+        {activeMachine && (activeOrder || onStartMachine) && (
           <>
             <motion.div
               key="sheet-backdrop"
@@ -223,7 +224,7 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
                   <div className="text-sm font-bold text-zinc-900">{activeMachine.name}</div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-lg">{activeMachine.publicCode}</span>
-                    <span className="text-[11px] text-zinc-400">{activeOrder.customerName}</span>
+                    {activeOrder && <span className="text-[11px] text-zinc-400">{activeOrder.customerName}</span>}
                   </div>
                 </div>
                 <button
@@ -235,77 +236,104 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
               </div>
 
               <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto">
-                {/* Reason input */}
-                <div>
-                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Reason</div>
-                  <input
-                    value={sheetReason}
-                    onChange={(e) => setSheetReason(e.target.value)}
-                    placeholder="Describe why this machine needs rework or reassignment…"
-                    autoFocus
-                    className="w-full h-9 px-3 text-sm rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
-                  />
-                </div>
-
-                {/* Rework */}
-                <div>
-                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Rework</div>
-                  <button
-                    disabled={!reasonOk}
-                    onClick={() => {
-                      if (!reasonOk) return;
-                      onUnassign(activeOrder.id, activeAssignment.lineId, activeMachine.id, sheetReason.trim(), "rework");
-                      onAssign(activeOrder.id, activeMachine.id, activeAssignment.productId, activeAssignment.lineId);
-                      closeSheet();
-                    }}
-                    className={`flex items-center gap-2 h-10 px-4 rounded-xl border text-sm font-semibold transition-colors ${
-                      reasonOk
-                        ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                        : "border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed"
-                    }`}
-                  >
-                    <RotateCcw size={14} strokeWidth={2.5} />
-                    Restart on {activeMachine.publicCode}
-                  </button>
-                </div>
-
-                {/* Reassign */}
-                <div>
-                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Reassign to another machine</div>
-                  {(() => {
-                    const alternatives = machines.filter(
-                      (m) => m.kind === activeMachine.kind && m.status === "online" && m.id !== activeMachine.id
-                    );
-                    if (alternatives.length === 0) {
-                      return <p className="text-[11px] text-zinc-300">No other {activeMachine.kind}s available</p>;
-                    }
-                    return (
-                      <div className="flex flex-wrap gap-1.5">
-                        {alternatives.map((m) => (
-                          <button
-                            key={m.id}
-                            disabled={!reasonOk}
-                            onClick={() => {
-                              if (!reasonOk) return;
-                              onUnassign(activeOrder.id, activeAssignment.lineId, activeMachine.id, sheetReason.trim(), "reassign");
-                              onAssign(activeOrder.id, m.id, activeAssignment.productId, activeAssignment.lineId);
-                              closeSheet();
-                            }}
-                            className={`flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[12px] font-semibold transition-colors ${
-                              reasonOk
-                                ? "border-zinc-200 text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa]"
-                                : "border-zinc-100 text-zinc-300 cursor-not-allowed"
-                            }`}
-                          >
-                            <ArrowLeftRight size={12} strokeWidth={2.5} />
-                            <span className="font-bold">{m.publicCode}</span>
-                            <span className="font-normal text-zinc-400">{m.name}</span>
-                          </button>
-                        ))}
+                {/* Start Timer — shown only when machine not yet physically activated */}
+                {!activeMachine.startedAt && onStartMachine && (
+                  <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <div className="text-sm font-bold text-emerald-800">Start timer manually</div>
+                      <div className="text-[11px] text-emerald-600 mt-0.5">
+                        Machine is assigned but timer hasn't started. Tap when the machine physically begins.
                       </div>
-                    );
-                  })()}
-                </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        onStartMachine(activeMachine.id);
+                        closeSheet();
+                      }}
+                      className="shrink-0 flex items-center gap-2 h-10 px-4 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 transition-colors"
+                    >
+                      <Play size={14} strokeWidth={2.5} fill="currentColor" />
+                      Start
+                    </button>
+                  </div>
+                )}
+
+                {/* Rework / Reassign — only available once machine has started */}
+                {activeOrder && activeAssignment && onUnassign && onAssign && (
+                  <>
+                    {/* Reason input */}
+                    <div>
+                      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Reason</div>
+                      <input
+                        value={sheetReason}
+                        onChange={(e) => setSheetReason(e.target.value)}
+                        placeholder="Describe why this machine needs rework or reassignment…"
+                        autoFocus={!!activeMachine.startedAt}
+                        className="w-full h-9 px-3 text-sm rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
+                      />
+                    </div>
+
+                    {/* Rework */}
+                    <div>
+                      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Rework</div>
+                      <button
+                        disabled={!reasonOk}
+                        onClick={() => {
+                          if (!reasonOk) return;
+                          onUnassign(activeOrder.id, activeAssignment.lineId, activeMachine.id, sheetReason.trim(), "rework");
+                          onAssign(activeOrder.id, activeMachine.id, activeAssignment.productId, activeAssignment.lineId);
+                          closeSheet();
+                        }}
+                        className={`flex items-center gap-2 h-10 px-4 rounded-xl border text-sm font-semibold transition-colors ${
+                          reasonOk
+                            ? "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                            : "border-zinc-100 bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                        }`}
+                      >
+                        <RotateCcw size={14} strokeWidth={2.5} />
+                        Restart on {activeMachine.publicCode}
+                      </button>
+                    </div>
+
+                    {/* Reassign */}
+                    <div>
+                      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Reassign to another machine</div>
+                      {(() => {
+                        const alternatives = machines.filter(
+                          (m) => m.kind === activeMachine.kind && m.status === "online" && m.id !== activeMachine.id
+                        );
+                        if (alternatives.length === 0) {
+                          return <p className="text-[11px] text-zinc-300">No other {activeMachine.kind}s available</p>;
+                        }
+                        return (
+                          <div className="flex flex-wrap gap-1.5">
+                            {alternatives.map((m) => (
+                              <button
+                                key={m.id}
+                                disabled={!reasonOk}
+                                onClick={() => {
+                                  if (!reasonOk) return;
+                                  onUnassign(activeOrder.id, activeAssignment.lineId, activeMachine.id, sheetReason.trim(), "reassign");
+                                  onAssign(activeOrder.id, m.id, activeAssignment.productId, activeAssignment.lineId);
+                                  closeSheet();
+                                }}
+                                className={`flex items-center gap-1.5 h-9 px-3 rounded-xl border text-[12px] font-semibold transition-colors ${
+                                  reasonOk
+                                    ? "border-zinc-200 text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa]"
+                                    : "border-zinc-100 text-zinc-300 cursor-not-allowed"
+                                }`}
+                              >
+                                <ArrowLeftRight size={12} strokeWidth={2.5} />
+                                <span className="font-bold">{m.publicCode}</span>
+                                <span className="font-normal text-zinc-400">{m.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </>

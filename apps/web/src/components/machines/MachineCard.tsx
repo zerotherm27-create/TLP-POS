@@ -3,14 +3,27 @@ import { motion } from "framer-motion";
 import { WashingMachine, Wind, Clock } from "lucide-react";
 import type { Machine } from "@tlp/shared";
 
-/* ── Live countdown ── */
-function useCountdown(initialMinutes: number) {
-  const [secs, setSecs] = useState(initialMinutes * 60);
+/* ── Wall-clock countdown ──
+   Computes remaining seconds from startedAt + durationMinutes.
+   Returns null if startedAt is absent (machine not yet physically activated). */
+function useCountdown(startedAt: string | undefined, durationMinutes: number) {
+  const getRemainingMs = () => {
+    if (!startedAt) return null;
+    const endMs = new Date(startedAt).getTime() + durationMinutes * 60 * 1000;
+    return Math.max(0, endMs - Date.now());
+  };
+
+  const [ms, setMs] = useState<number | null>(getRemainingMs);
+
   useEffect(() => {
-    if (secs <= 0) return;
-    const id = setInterval(() => setSecs((s) => Math.max(0, s - 1)), 1000);
+    if (!startedAt) { setMs(null); return; }
+    setMs(getRemainingMs());
+    const id = setInterval(() => setMs(getRemainingMs()), 1000);
     return () => clearInterval(id);
-  }, [secs <= 0]);
+  }, [startedAt]);
+
+  if (ms === null) return { display: null, totalSecs: 0 };
+  const secs = Math.floor(ms / 1000);
   const m = String(Math.floor(secs / 60)).padStart(2, "0");
   const s = String(secs % 60).padStart(2, "0");
   return { display: `${m}:${s}`, totalSecs: secs };
@@ -67,10 +80,11 @@ function RunIcon({ kind }: { kind: "washer" | "dryer" }) {
 
 /* ── RUNNING card ── */
 function RunningCard({ machine }: { machine: Machine }) {
-  const { name, kind, tier, customerName, remainingMinutes, publicCode } = machine;
-  const maxMinutes = kind === "washer" ? 50 : 60;
-  const { display: timeDisplay, totalSecs } = useCountdown(remainingMinutes ?? 0);
-  const pct = Math.min(100, Math.max(0, ((maxMinutes * 60 - totalSecs) / (maxMinutes * 60)) * 100));
+  const { name, kind, tier, customerName, remainingMinutes, publicCode, startedAt } = machine;
+  const maxSecs = (remainingMinutes ?? 0) * 60;
+  const { display: timeDisplay, totalSecs } = useCountdown(startedAt, remainingMinutes ?? 0);
+  const started = !!startedAt;
+  const pct = started ? Math.min(100, Math.max(0, ((maxSecs - totalSecs) / maxSecs) * 100)) : 0;
 
   return (
     <motion.div
@@ -118,20 +132,39 @@ function RunningCard({ machine }: { machine: Machine }) {
         )}
       </div>
 
-      {/* Center: progress ring + icon */}
+      {/* Center */}
       <div className="flex-1 flex flex-col items-center justify-center py-4 relative">
-        <div className="relative">
-          <ProgressRing pct={pct} size={80} stroke={4} />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <RunIcon kind={kind} />
+        {started ? (
+          <>
+            <div className="relative">
+              <ProgressRing pct={pct} size={80} stroke={4} />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <RunIcon kind={kind} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-1.5">
+              <Clock size={11} className="text-white/50" strokeWidth={2} />
+              <span className="text-white/70 text-[11px] font-bold tabular-nums tracking-wider">
+                {timeDisplay}
+              </span>
+            </div>
+          </>
+        ) : (
+          /* Pending physical activation */
+          <div className="flex flex-col items-center gap-2">
+            <motion.div
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.12)" }}
+            >
+              <RunIcon kind={kind} />
+            </motion.div>
+            <span className="text-white/50 text-[10px] font-semibold uppercase tracking-widest">
+              Pending start
+            </span>
           </div>
-        </div>
-        <div className="mt-3 flex items-center gap-1.5">
-          <Clock size={11} className="text-white/50" strokeWidth={2} />
-          <span className="text-white/70 text-[11px] font-bold tabular-nums tracking-wider">
-            {timeDisplay}
-          </span>
-        </div>
+        )}
       </div>
 
       {/* Customer */}

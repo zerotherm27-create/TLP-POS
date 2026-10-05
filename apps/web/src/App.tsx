@@ -78,6 +78,12 @@ export default function App() {
     );
   };
 
+  const handleStartMachine = (machineId: string) => {
+    setMachines((prev) =>
+      prev.map((m) => m.id === machineId ? { ...m, startedAt: new Date().toISOString() } : m)
+    );
+  };
+
   const handleUnassign = (orderId: string, lineId: string, machineId: string, reason?: string, mode?: "rework" | "reassign") => {
     if (reason && mode) {
       console.log(`[${new Date().toISOString()}] ${mode.toUpperCase()} — order ${orderId}, machine ${machineId}. Reason: ${reason}`);
@@ -154,6 +160,7 @@ export default function App() {
                   orders={orders}
                   onUnassign={handleUnassign}
                   onAssign={handleAssign}
+                  onStartMachine={handleStartMachine}
                 />
               )}
               {section === "transactions" && (
