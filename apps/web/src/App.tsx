@@ -14,6 +14,8 @@ import AlertsCard from "./components/overview/AlertsCard";
 import ProductManager from "./components/admin/ProductManager";
 import OrdersSection from "./components/orders/OrdersSection";
 import { useRole } from "./hooks/useRole";
+import { useAuth } from "./hooks/useAuth";
+import WelcomeTour from "./components/onboarding/WelcomeTour";
 import { authFetch } from "./lib/supabase";
 import { useOrders } from "./hooks/useOrders";
 import { usePackages } from "./hooks/usePackages";
@@ -32,6 +34,19 @@ const spring = { type: "spring" as const, stiffness: 320, damping: 30 };
 export default function App() {
   const [section, setSection] = useState<Section>("overview");
   const { role, isAdmin, signOut } = useRole();
+  const { email } = useAuth();
+
+  // First-login welcome guide: shown once per account on this device, and any time from the ? button.
+  const [showTour, setShowTour] = useState(false);
+  const tourKey = email ? `laundrodesk-tour-v1:${email.toLowerCase()}` : null;
+  useEffect(() => {
+    if (!tourKey) return;
+    try { if (!localStorage.getItem(tourKey)) setShowTour(true); } catch { setShowTour(true); }
+  }, [tourKey]);
+  const closeTour = () => {
+    setShowTour(false);
+    if (tourKey) { try { localStorage.setItem(tourKey, "1"); } catch { /* private mode: it will show again next time */ } }
+  };
   const { machines, refreshMachines, patchMachine } = useMachines();
   const { products, tubCleanThreshold, extraRates, largeLoadKg, settingsError, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg } = useSettings();
   const { packages, error: packagesError, createPackage, updatePackage, removePackage, movePackage } = usePackages();
@@ -211,6 +226,7 @@ export default function App() {
           isAdmin={isAdmin}
           onNewOrder={() => { setSection("orders"); setShowCreateOrder(true); }}
           onToggleRole={signOut}
+          onShowGuide={() => setShowTour(true)}
         />
 
         <main className="flex-1 px-4 md:px-6 py-5 pb-24 md:pb-6 overflow-x-hidden">
@@ -436,6 +452,8 @@ export default function App() {
           </AnimatePresence>
         </main>
       </div>
+
+      <WelcomeTour open={showTour} isAdmin={isAdmin} onClose={closeTour} />
 
       <BottomNav
         active={section}

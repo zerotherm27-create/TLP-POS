@@ -1,4 +1,4 @@
-import { Plus, LogOut } from "lucide-react";
+import { Plus, LogOut, CircleHelp } from "lucide-react";
 import type { Section } from "./BottomNav";
 
 const SECTION_META: Record<Section, { title: string; subtitle: string }> = {
@@ -15,9 +15,10 @@ interface Props {
   isAdmin: boolean;
   onNewOrder: () => void;
   onToggleRole: () => void;
+  onShowGuide?: () => void;
 }
 
-export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole }: Props) {
+export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onShowGuide }: Props) {
   const { title, subtitle } = SECTION_META[section];
 
   return (
@@ -45,6 +46,16 @@ export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole }: P
           <span className="hidden min-[430px]:inline">{isAdmin ? "Admin" : "Staff"}</span>
           <LogOut size={12} className="text-zinc-400" />
         </button>
+        {onShowGuide && (
+          <button
+            onClick={onShowGuide}
+            aria-label="Show the welcome guide"
+            title="Welcome guide"
+            className="h-8 w-8 flex items-center justify-center border border-zinc-200 rounded-xl text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700 active:scale-[0.97] transition-all"
+          >
+            <CircleHelp size={14} strokeWidth={2} />
+          </button>
+        )}
         {section === "orders" && (
           <button
             onClick={onNewOrder}
