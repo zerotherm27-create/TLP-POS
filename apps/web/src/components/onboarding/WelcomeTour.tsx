@@ -16,7 +16,7 @@ const STEPS: Step[] = [
     Icon: Sparkles,
     title: "Welcome to LaundroDesk",
     body: "This is where The Laundry Project runs the floor: take an order, pick the right machines, and track every load until it is done.",
-    tips: ["Takes about a minute", "Tap the ? button any time to see this again"],
+    tips: ["Takes about a minute", "Tap the ? button any time for the full guide"],
   },
   {
     Icon: WashingMachine,

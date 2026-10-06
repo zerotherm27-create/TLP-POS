@@ -16,6 +16,7 @@ import OrdersSection from "./components/orders/OrdersSection";
 import { useRole } from "./hooks/useRole";
 import { useAuth } from "./hooks/useAuth";
 import WelcomeTour from "./components/onboarding/WelcomeTour";
+import HelpGuide from "./components/onboarding/HelpGuide";
 import { authFetch } from "./lib/supabase";
 import { useOrders } from "./hooks/useOrders";
 import { usePackages } from "./hooks/usePackages";
@@ -38,6 +39,7 @@ export default function App() {
 
   // First-login welcome guide: shown once per account on this device, and any time from the ? button.
   const [showTour, setShowTour] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const tourKey = email ? `laundrodesk-tour-v1:${email.toLowerCase()}` : null;
   useEffect(() => {
     if (!tourKey) return;
@@ -226,7 +228,7 @@ export default function App() {
           isAdmin={isAdmin}
           onNewOrder={() => { setSection("orders"); setShowCreateOrder(true); }}
           onToggleRole={signOut}
-          onShowGuide={() => setShowTour(true)}
+          onShowGuide={() => setShowGuide(true)}
         />
 
         <main className="flex-1 px-4 md:px-6 py-5 pb-24 md:pb-6 overflow-x-hidden">
@@ -453,6 +455,12 @@ export default function App() {
         </main>
       </div>
 
+      <HelpGuide
+        open={showGuide}
+        isAdmin={isAdmin}
+        onClose={() => setShowGuide(false)}
+        onReplayTour={() => { setShowGuide(false); setShowTour(true); }}
+      />
       <WelcomeTour open={showTour} isAdmin={isAdmin} onClose={closeTour} />
 
       <BottomNav
