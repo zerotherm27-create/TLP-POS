@@ -7,6 +7,8 @@ import OverviewSection from "./components/overview/OverviewSection";
 import MachineBoard from "./components/machines/MachineBoard";
 import TransactionTable from "./components/transactions/TransactionTable";
 import PackageBuilder from "./components/admin/PackageBuilder";
+import InsightsPanel from "./components/admin/InsightsPanel";
+import AlertsCard from "./components/overview/AlertsCard";
 import ProductManager from "./components/admin/ProductManager";
 import OrdersSection from "./components/orders/OrdersSection";
 import { useRole } from "./hooks/useRole";
@@ -16,6 +18,7 @@ import { usePackages } from "./hooks/usePackages";
 import { useSettings } from "./hooks/useSettings";
 import { useMachines } from "./hooks/useMachines";
 import { ordersToSales, isToday } from "./lib/sales";
+import { computeAlerts, type Alert } from "@tlp/shared";
 import type { JobOrder } from "@tlp/shared";
 import type { NewOrderPayload } from "./components/overview/JobOrderForm";
 import {
@@ -30,12 +33,17 @@ export default function App() {
   const { machines, refreshMachines, patchMachine } = useMachines();
   const { products, tubCleanThreshold, settingsError, setProducts, setTubCleanThreshold } = useSettings();
   const { packages, error: packagesError, createPackage, removePackage, movePackage } = usePackages();
-  const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines">("programs");
+  const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines" | "insights">("programs");
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [draftThreshold, setDraftThreshold] = useState(String(tubCleanThreshold));
   useEffect(() => { setDraftThreshold(String(tubCleanThreshold)); }, [tubCleanThreshold]);
   const [confirmCleanId, setConfirmCleanId] = useState<string | null>(null);
   const { orders, updateOrder, addOrder } = useOrders("b1", mockJobOrders);
+  const alerts = useMemo(
+    () => computeAlerts(machines, orders, products, tubCleanThreshold),
+    [machines, orders, products, tubCleanThreshold]
+  );
+  const handleAlertSelect = (a: Alert) => setSection(a.orderId ? "orders" : "machines");
   const todaysSales = useMemo(() => ordersToSales(orders, products).filter((s) => isToday(s.paidAt)), [orders, products]);
 
   // Server calls run one after another so e.g. "restart" (release, then assign) can't race itself.
@@ -214,6 +222,8 @@ export default function App() {
                   packages={packages}
                   isAdmin={isAdmin}
                   threshold={tubCleanThreshold}
+                  alerts={alerts}
+                  onAlertSelect={handleAlertSelect}
                 />
               )}
               {section === "orders" && (
@@ -223,6 +233,7 @@ export default function App() {
                   packages={packages}
                   machines={machines}
                   isAdmin={isAdmin}
+                  tubCleanThreshold={tubCleanThreshold}
                   showCreate={showCreateOrder}
                   onCloseCreate={() => setShowCreateOrder(false)}
                   onCreateOrder={handleCreateOrder}
@@ -234,7 +245,9 @@ export default function App() {
                 />
               )}
               {section === "machines" && (
-                <MachineBoard
+                <div className="flex flex-col gap-5">
+                  <AlertsCard alerts={alerts} onSelect={handleAlertSelect} />
+                  <MachineBoard
                   machines={machines}
                   isAdmin={isAdmin}
                   threshold={tubCleanThreshold}
@@ -244,7 +257,8 @@ export default function App() {
                   onUnassign={handleUnassign}
                   onAssign={handleAssign}
                   onStartMachine={handleStartMachine}
-                />
+                  />
+                </div>
               )}
               {section === "transactions" && (
                 <TransactionTable orders={orders} products={products} />
@@ -253,7 +267,7 @@ export default function App() {
                 <div className="flex flex-col gap-5">
                   {/* Tab switcher */}
                   <div className="flex gap-1 bg-zinc-100 p-1 rounded-xl w-fit">
-                    {(["programs", "packages", "machines"] as const).map((tab) => (
+                    {(["programs", "packages", "machines", "insights"] as const).map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setAdminTab(tab)}
@@ -274,6 +288,7 @@ export default function App() {
                       <ProductManager products={products} onChange={setProducts} />
                     </div>
                   )}
+                  {adminTab === "insights" && <InsightsPanel />}
                   {adminTab === "packages" && (
                     <PackageBuilder products={products} packages={packages} error={packagesError} onCreate={createPackage} onRemove={removePackage} onMove={movePackage} />
                   )}

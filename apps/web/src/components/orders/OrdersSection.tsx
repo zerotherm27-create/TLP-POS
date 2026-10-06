@@ -5,6 +5,7 @@ import {
   WashingMachine, Wind, X, ChevronRight, RotateCcw, ArrowLeftRight,
 } from "lucide-react";
 import type { JobOrder, Product, Machine, FulfillmentStage, ServicePackage } from "@tlp/shared";
+import { rankMachines } from "@tlp/shared";
 import JobOrderForm, { type NewOrderPayload } from "../overview/JobOrderForm";
 import { formatPeso, formatTime, formatDateTime } from "../../lib/format";
 
@@ -123,6 +124,7 @@ function DetailPanel({
   onUnassign,
   onAddService,
   onFinishMachine,
+  tubCleanThreshold = 50,
 }: {
   order: JobOrder;
   products: Product[];
@@ -134,6 +136,7 @@ function DetailPanel({
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
   onAddService?: (orderId: string, productId: string) => Promise<void>;
   onFinishMachine?: (machineId: string) => Promise<void> | void;
+  tubCleanThreshold?: number;
 }) {
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -481,9 +484,7 @@ function DetailPanel({
             <div className="flex flex-col gap-3">
               {unassignedServices.map(({ line, product }) => {
                 if (!product) return null;
-                const available = machines.filter(
-                  (m) => m.kind === product.machineKind && m.status === "online"
-                );
+                const available = rankMachines(machines, product.machineKind, tubCleanThreshold);
                 const serviceIdx = services.findIndex((s) => s.line.lineId === line.lineId);
                 const loadNum = loadNumbers[serviceIdx];
                 return (
@@ -506,14 +507,24 @@ function DetailPanel({
                       </p>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
-                        {available.map((m) => (
+                        {available.map(({ machine: m, suggested, tubDue }) => (
                           <button
                             key={m.id}
                             onClick={() => onAssign(order.id, m.id, line.productId, line.lineId)}
-                            className="flex items-center gap-1.5 h-7 px-3 rounded-xl border border-zinc-200 text-[11px] font-semibold text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa] transition-colors"
+                            className={`flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[11px] font-semibold transition-colors ${
+                              suggested
+                                ? "border-[#009eb5] bg-[#e0f6fa] text-[#007a8c]"
+                                : "border-zinc-200 text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa]"
+                            }`}
                           >
                             <span className="font-bold">{m.publicCode}</span>
-                            <span className="text-zinc-400 font-normal">{m.name}</span>
+                            <span className={suggested ? "font-normal text-[#009eb5]" : "text-zinc-400 font-normal"}>{m.name}</span>
+                            {suggested && (
+                              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#007a8c] text-white">Suggested</span>
+                            )}
+                            {tubDue && (
+                              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Clean due</span>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -576,7 +587,7 @@ interface Props {
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
 }
 
-export default function OrdersSection({ orders: initialOrders, products, packages, machines, isAdmin, showCreate, onCloseCreate, onCreateOrder, onVoidOrder, onAddService, onFinishMachine, onAssign, onUnassign }: Props) {
+export default function OrdersSection({ orders: initialOrders, products, packages, machines, isAdmin, showCreate, onCloseCreate, onCreateOrder, onVoidOrder, onAddService, onFinishMachine, tubCleanThreshold, onAssign, onUnassign }: Props) {
   const [orders, setOrders] = useState(initialOrders);
 
   useEffect(() => { setOrders(initialOrders); }, [initialOrders]);
@@ -736,6 +747,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
               onUnassign={onUnassign}
               onAddService={onAddService}
               onFinishMachine={onFinishMachine}
+              tubCleanThreshold={tubCleanThreshold}
             />
           ) : (
             <motion.div
@@ -822,6 +834,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
                 onUnassign={onUnassign}
               onAddService={onAddService}
               onFinishMachine={onFinishMachine}
+              tubCleanThreshold={tubCleanThreshold}
               />
             </motion.div>
           </>

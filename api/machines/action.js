@@ -1,5 +1,5 @@
 import { requireUser } from "../_auth.js";
-import { freeMachinePatch, fromMachineRow } from "../_machines.js";
+import { freeMachinePatch, fromMachineRow, recordCycleEnd } from "../_machines.js";
 import { ensurePost, readJson, sendJson, supabaseRequest } from "../_supabase.js";
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -75,6 +75,12 @@ export default async function handler(req, res) {
       body: JSON.stringify(patch),
       headers: { Prefer: "return=representation" },
     });
+
+    if (action === "finish" && updated?.length) {
+      const endedAt = new Date().toISOString();
+      const elapsed = machine.started_at ? Math.round((Date.now() - Date.parse(machine.started_at)) / 60000) : 0;
+      await recordCycleEnd(machine, { endedAt, minutes: Math.max(0, Math.min(machine.remaining_minutes ?? 0, elapsed)) });
+    }
 
     sendJson(res, 200, { ok: true, machine: updated?.[0] ? fromMachineRow(updated[0]) : undefined });
   } catch (error) {

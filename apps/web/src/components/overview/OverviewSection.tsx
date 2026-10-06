@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { WashingMachine, Wind } from "lucide-react";
 import MetricsGrid from "./MetricsGrid";
 import JobQueue from "./JobQueue";
+import AlertsCard from "./AlertsCard";
 import MachineDetailSheet from "../machines/MachineDetailSheet";
-import type { Machine, JobOrder, Sale, Product, ServicePackage } from "@tlp/shared";
+import type { Machine, JobOrder, Sale, Product, ServicePackage, Alert } from "@tlp/shared";
 
 interface Props {
   machines: Machine[];
@@ -14,6 +15,8 @@ interface Props {
   packages: ServicePackage[];
   isAdmin: boolean;
   threshold?: number;
+  alerts?: Alert[];
+  onAlertSelect?: (alert: Alert) => void;
 }
 
 /* ── Mini countdown ── */
@@ -262,7 +265,7 @@ function MachineTile({ machine, onSelect }: { machine: Machine; onSelect: (m: Ma
   );
 }
 
-export default function OverviewSection({ machines, orders, sales, products, isAdmin, threshold }: Props) {
+export default function OverviewSection({ machines, orders, sales, products, isAdmin, threshold, alerts = [], onAlertSelect }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = machines.find((m) => m.id === selectedId) ?? null;
   const selectedOrder = selected?.activeJobOrderId ? orders.find((o) => o.id === selected.activeJobOrderId) ?? null : null;
@@ -273,6 +276,8 @@ export default function OverviewSection({ machines, orders, sales, products, isA
   return (
     <div className="flex flex-col gap-5">
       <MetricsGrid machines={machines} sales={sales} openOrders={openOrders} isAdmin={isAdmin} />
+
+      <AlertsCard alerts={alerts} onSelect={onAlertSelect} />
 
       {/* Compact machine status grid */}
       <div className="bg-white rounded-2xl border border-zinc-100 p-2 sm:p-4"

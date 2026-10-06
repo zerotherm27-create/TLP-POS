@@ -86,6 +86,7 @@ export interface MachineAssignment {
   productId: string;
   assignedAt: string;
   startedAt?: string;
+  finishedAt?: string; // set by the server when the machine's cycle ends
 }
 
 export interface JobOrder {
@@ -166,3 +167,5 @@ export const formatPeso = (cents: number) =>
   }).format(cents / 100);
 
 export { getFulfillmentStageLabel, getOrderSourceLabel, isImportedOrder } from "./orderWorkflow.js";
+export { rankMachines, computeAlerts, loadsSinceClean, isTubDue, ALERT_LIMITS } from "./insights.js";
+export type { Alert, AlertKind, MachineSuggestion } from "./insights.js";

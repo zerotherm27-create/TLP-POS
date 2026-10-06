@@ -33,6 +33,52 @@ export const selectMachines = () =>
   supabaseRequest("tlp_machines?branch_id=eq.b1&order=public_code.asc");
 
 /**
+ * A cycle just ended on this machine (row = the machine row BEFORE it was freed).
+ * Logs a run for the history/insights (only if the timer really started) and stamps
+ * `finishedAt` on the order's assignment so "washed, waiting for a dryer" can be spotted.
+ * Never throws: the machine is already free, bookkeeping must not break the request.
+ */
+export const recordCycleEnd = async (row, { endedAt, minutes }) => {
+  try {
+    if (row.started_at) {
+      await supabaseRequest("tlp_machine_runs", {
+        method: "POST",
+        body: JSON.stringify({
+          machine_id: row.id,
+          order_id: row.active_job_order_id ?? null,
+          started_at: row.started_at,
+          ended_at: endedAt,
+          minutes,
+        }),
+        headers: { Prefer: "return=minimal" },
+      });
+    }
+    if (row.active_job_order_id) {
+      const safeId = encodeURIComponent(row.active_job_order_id);
+      const rows = await supabaseRequest(`tlp_job_orders?id=eq.${safeId}&select=assignments&limit=1`);
+      const assignments = rows?.[0]?.assignments ?? [];
+      let stamped = false;
+      const next = assignments.map((a) => {
+        if (!stamped && a.machineId === row.id && !a.finishedAt) {
+          stamped = true;
+          return { ...a, finishedAt: endedAt };
+        }
+        return a;
+      });
+      if (stamped) {
+        await supabaseRequest(`tlp_job_orders?id=eq.${safeId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ assignments: next }),
+          headers: { Prefer: "return=minimal" },
+        });
+      }
+    }
+  } catch (error) {
+    console.error("recordCycleEnd failed:", error instanceof Error ? error.message : error);
+  }
+};
+
+/**
  * Finished cycles: a running machine whose timer has run out becomes available again and its
  * cycle count goes up by one. The PATCH only applies if the row is still in the same run, so
  * concurrent polls can't count a cycle twice.
@@ -55,7 +101,13 @@ export const finalizeExpired = async (rows) => {
         headers: { Prefer: "return=representation" },
       }
     );
-    if (done?.length) changed = true;
+    if (done?.length) {
+      changed = true;
+      await recordCycleEnd(r, {
+        endedAt: new Date(Date.parse(r.started_at) + r.remaining_minutes * 60000).toISOString(),
+        minutes: r.remaining_minutes,
+      });
+    }
   }
   return changed;
 };

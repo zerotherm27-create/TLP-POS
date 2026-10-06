@@ -7,7 +7,7 @@ const baseOrder: JobOrder = {
   id: "jo-test",
   branchId: "branch-tlp-main",
   customerName: "Test Customer",
-  services: [{ productId: "wash-35", quantity: 1 }],
+  services: [{ lineId: "line-1", productId: "wash-35", quantity: 1 }],
   assignments: [],
   status: "queued",
   source: "tlp_pos",
@@ -24,14 +24,8 @@ test("labels TLP and LaundroBot order sources", () => {
 
 test("detects imported orders by source and external id", () => {
   assert.equal(isImportedOrder(baseOrder), false);
-  assert.equal(
-    isImportedOrder({
-      ...baseOrder,
-      source: "laundrobot",
-      externalOrderId: "lb-24018"
-    }),
-    true
-  );
+  const imported: JobOrder = { ...baseOrder, source: "laundrobot", externalOrderId: "lb-24018" };
+  assert.equal(isImportedOrder(imported), true);
 });
 
 test("labels customer-facing fulfillment stages", () => {
