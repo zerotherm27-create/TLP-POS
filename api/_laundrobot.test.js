@@ -51,3 +51,32 @@ test("weight is only the backup: a medium bag over the threshold is still treate
   assert.equal(one("Medium bag", 10).tier, "titan"); // default threshold is now 10 kg
   assert.equal(one("Medium bag", 9.5).tier, undefined);
 });
+
+test("your real LaundroBot order: Clothes - Machine Wash, Size: Large Bag (max 12kg/bag), Quantity 2 -> two large loads, price split", () => {
+  const m = mapLaundrobotOrder(raw([{
+    kind: "washer", durationMinutes: 35, quantity: 2, priceCents: 110000,
+    serviceName: "Clothes - Machine Wash", size: "Large Bag (max 12kg/bag)",
+  }]));
+  assert.equal(m.services.length, 2); // one load per bag
+  assert.deepEqual(m.services.map((l) => l.tier), ["titan", "titan"]);
+  assert.deepEqual(m.services.map((l) => l.priceCents), [55000, 55000]); // PHP 1,100 split across the two bags
+  assert.equal(m.services[0].note, "Large Bag (max 12kg/bag)");
+  assert.equal(m.tier, "titan");
+});
+
+test("medium and small bags stay on the regular machines, even when the service name has no size", () => {
+  const one = (size) => mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, quantity: 1, serviceName: "Clothes - Machine Wash", size }])).services[0];
+  assert.equal(one("Medium Bag (max 8kg/bag)").tier, undefined);
+  assert.equal(one("Small Bag (max 5kg/bag)").tier, undefined);
+  assert.equal(one("Large Bag (max 12kg/bag)").tier, "titan");
+  assert.equal(one(undefined).tier, undefined);
+  // stated maximum alone decides when a size is worded differently
+  assert.equal(one("Jumbo (max 12kg)").tier, "titan");
+});
+
+test("a recorded total weight is divided across the bags before comparing", () => {
+  const two = (kg) => mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, quantity: 2, weightKg: kg }])).services[0];
+  assert.equal(two(24).tier, "titan"); // 12 kg per bag
+  assert.equal(two(16).tier, undefined); // 8 kg per bag
+  assert.equal(two(24).weightKg, 12);
+});

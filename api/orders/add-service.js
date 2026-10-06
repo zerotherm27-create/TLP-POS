@@ -43,9 +43,13 @@ export default async function handler(req, res) {
       return;
     }
 
+    // A dryer added to an order whose washers are the larger titan ones needs the larger dryer too.
+    const washerLines = order.services.filter((l) => products.find((p) => p.id === l.productId)?.machineKind === "washer");
+    const inheritLarge = product.machineKind === "dryer" && washerLines.length > 0 && washerLines.every((l) => l.tier === "titan");
+
     order.services = [
       ...order.services,
-      { lineId: crypto.randomUUID(), productId: product.id, quantity: 1, priceCents: product.priceCents },
+      { lineId: crypto.randomUUID(), productId: product.id, quantity: 1, priceCents: product.priceCents, ...(inheritLarge ? { tier: "titan" } : {}) },
     ];
     order.updatedAt = new Date().toISOString();
 
