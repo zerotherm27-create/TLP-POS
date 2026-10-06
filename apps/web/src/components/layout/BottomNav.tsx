@@ -1,9 +1,9 @@
 import { motion, AnimatePresence } from "framer-motion";
+import PesoBoxIcon from "./PesoBoxIcon";
 import {
   LayoutDashboard,
   ClipboardList,
   WashingMachine,
-  PhilippinePeso,
   ShieldCheck,
 } from "lucide-react";
 
@@ -20,7 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview", Icon: LayoutDashboard },
   { id: "orders", label: "Orders", Icon: ClipboardList },
   { id: "machines", label: "Machines", Icon: WashingMachine },
-  { id: "transactions", label: "Sales", Icon: PhilippinePeso },
+  { id: "transactions", label: "Sales", Icon: PesoBoxIcon },
   { id: "admin", label: "Admin", Icon: ShieldCheck, adminOnly: true },
 ];
 
