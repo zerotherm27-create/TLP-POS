@@ -43,7 +43,7 @@ export const fetchLaundrobotOrders = async () => {
 //   contactNumber?: string,
 //   notes?: string,
 //   orderUrl?: string,
-//   services: [{ kind: string, durationMinutes?: number, quantity?: number, priceCents?: number, serviceName?: string, size?: string, weightKg?: number }]
+//   services: [{ kind: string, durationMinutes?: number, quantity?: number, priceCents?: number, serviceName?: string, size?: string, options?: string[], weightKg?: number }]
 // }
 // Returns null when the order contains no machine-wash/dry services (e.g. handwash, dryclean).
 export const mapLaundrobotOrder = (rawOrder, { largeKg = 10 } = {}) => {
@@ -63,13 +63,18 @@ export const mapLaundrobotOrder = (rawOrder, { largeKg = 10 } = {}) => {
     // stated maximum weight or a recorded weight at or above the threshold counts too.
     const serviceName = typeof s.serviceName === "string" ? s.serviceName.trim() : "";
     const size = typeof s.size === "string" ? s.size.trim() : "";
-    const label = size || serviceName;
+    const options = Array.isArray(s.options) ? s.options.filter((o) => typeof o === "string").map((o) => o.trim()).filter(Boolean) : [];
+    // What the customer picked, in the words LaundroBot uses (e.g. "CLOTHES FULL SERVICE GIANT (max 8kg / load)").
+    const label = size || options.find((o) => /kg/i.test(o)) || options[0] || serviceName;
+    const text = [serviceName, size, ...options].join(" ");
     const statedMax = Number(/(\d+(?:\.\d+)?)\s*kg/i.exec(label)?.[1]);
     const totalKg = Number(s.weightKg);
     const perBagKg = Number.isFinite(totalKg) && totalKg > 0 ? Math.round((totalKg / count) * 10) / 10 : NaN;
     const hasWeight = Number.isFinite(perBagKg);
+    // "Large" or "Titan" means the larger machines; "Giant" is the regular size. The stated maximum (max 12kg)
+    // or a recorded weight at or above the threshold counts as a backup.
     const large =
-      /\blarge\b/i.test(`${serviceName} ${size}`) ||
+      /\b(large|titan)\b/i.test(text) ||
       (Number.isFinite(statedMax) && statedMax >= largeKg) ||
       (hasWeight && perBagKg >= largeKg);
     const weightKg = perBagKg;

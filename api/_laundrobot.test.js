@@ -80,3 +80,25 @@ test("a recorded total weight is divided across the bags before comparing", () =
   assert.equal(two(16).tier, undefined); // 8 kg per bag
   assert.equal(two(24).weightKg, 12);
 });
+
+test("your second LaundroBot order: FULL SERVICE - CLOTHES, GIANT (max 8kg / load), quantity 2 -> two regular loads at 290 each", () => {
+  const m = mapLaundrobotOrder(raw([{
+    kind: "washer", durationMinutes: 35, quantity: 2, priceCents: 58000,
+    serviceName: "FULL SERVICE - CLOTHES",
+    options: ["CLOTHES FULL SERVICE GIANT (max 8kg / load)"],
+  }]));
+  assert.equal(m.services.length, 2);
+  assert.deepEqual(m.services.map((l) => l.tier), [undefined, undefined]); // giant = regular machines
+  assert.deepEqual(m.services.map((l) => l.priceCents), [29000, 29000]);
+  assert.equal(m.services[0].note, "CLOTHES FULL SERVICE GIANT (max 8kg / load)");
+  assert.equal(m.tier, undefined);
+});
+
+test("the size can be in any option: Titan or Large, or a stated max of 10 kg or more, means the larger machines", () => {
+  const one = (options) => mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, quantity: 1, serviceName: "FULL SERVICE - CLOTHES", options }])).services[0];
+  assert.equal(one(["CLOTHES FULL SERVICE TITAN (max 12kg / load)"]).tier, "titan");
+  assert.equal(one(["Colored", "Large Bag"]).tier, "titan");
+  assert.equal(one(["CLOTHES FULL SERVICE JUMBO (max 12kg / load)"]).tier, "titan"); // stated max
+  assert.equal(one(["Colored", "Standard ( 3 Days )"]).tier, undefined);
+  assert.equal(one([]).tier, undefined);
+});
