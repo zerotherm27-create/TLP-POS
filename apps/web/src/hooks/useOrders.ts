@@ -28,5 +28,9 @@ export function useOrders(branchId: string, fallback: JobOrder[] = []) {
     setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
   }, []);
 
-  return { orders, refresh, updateOrder };
+  const addOrder = useCallback((created: JobOrder) => {
+    setOrders((prev) => [created, ...prev.filter((o) => o.id !== created.id)]);
+  }, []);
+
+  return { orders, refresh, updateOrder, addOrder };
 }

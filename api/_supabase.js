@@ -82,6 +82,7 @@ export const toJobOrderRow = (jobOrder) => ({
   status: jobOrder.status,
   payment_status: jobOrder.paymentStatus,
   fulfillment_stage: jobOrder.fulfillmentStage,
+  payment_method: jobOrder.paymentMethod,
   created_at: jobOrder.createdAt,
   updated_at: jobOrder.updatedAt
 });
@@ -101,6 +102,7 @@ export const fromJobOrderRow = (row) => ({
   status: row.status,
   paymentStatus: row.payment_status,
   fulfillmentStage: row.fulfillment_stage,
+  paymentMethod: row.payment_method ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at
 });

@@ -103,6 +103,7 @@ export interface JobOrder {
   status: JobOrderStatus;
   paymentStatus: PaymentStatus;
   fulfillmentStage: FulfillmentStage;
+  paymentMethod?: PaymentMethod;
   createdAt: string;
   updatedAt: string;
 }

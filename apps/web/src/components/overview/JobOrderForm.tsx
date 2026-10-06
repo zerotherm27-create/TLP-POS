@@ -9,9 +9,19 @@ interface ServiceSelection {
   quantity: number;
 }
 
+export interface NewOrderPayload {
+  customerName: string;
+  contactNumber: string;
+  notes: string;
+  services: ServiceSelection[];
+  paymentMethod: PaymentMethod;
+}
+
 interface Props {
   products: Product[];
   packages: ServicePackage[];
+  /** Saves the order. Resolves when it is stored; rejects with a message if it fails. */
+  onCheckout?: (payload: NewOrderPayload) => Promise<void>;
 }
 
 const PAYMENT_ICONS = {
@@ -20,12 +30,32 @@ const PAYMENT_ICONS = {
   manual: CreditCard,
 };
 
-export default function JobOrderForm({ products, packages }: Props) {
+export default function JobOrderForm({ products, packages, onCheckout }: Props) {
   const [customerName, setCustomerName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [selections, setSelections] = useState<ServiceSelection[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const checkout = async () => {
+    if (saving || !onCheckout) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onCheckout({ customerName: customerName.trim(), contactNumber: contactNumber.trim(), notes: notes.trim(), services: selections, paymentMethod });
+      setCustomerName("");
+      setContactNumber("");
+      setNotes("");
+      setSelections([]);
+      setPaymentMethod("cash");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save the order. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const washers = products.filter((p) => p.machineKind === "washer" && !p.isExtraTime);
   const dryers = products.filter((p) => p.machineKind === "dryer" && !p.isExtraTime);
@@ -172,6 +202,8 @@ export default function JobOrderForm({ products, packages }: Props) {
         </div>
       </div>
 
+      {error && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+
       {/* Checkout strip */}
       <AnimatePresence>
         {canSubmit && (
@@ -202,16 +234,11 @@ export default function JobOrderForm({ products, packages }: Props) {
                 );
               })}
               <button
-                className="flex-1 h-9 px-5 rounded-xl text-sm font-semibold text-zinc-900 bg-white active:scale-[0.97] transition-all ml-1"
-                onClick={() => {
-                  setCustomerName("");
-                  setContactNumber("");
-                  setNotes("");
-                  setSelections([]);
-                  setPaymentMethod("cash");
-                }}
+                className="flex-1 h-9 px-5 rounded-xl text-sm font-semibold text-zinc-900 bg-white active:scale-[0.97] transition-all ml-1 disabled:opacity-60"
+                onClick={checkout}
+                disabled={saving}
               >
-                Checkout
+                {saving ? "Saving…" : "Checkout"}
               </button>
             </div>
           </motion.div>

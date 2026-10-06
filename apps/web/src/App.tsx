@@ -15,6 +15,8 @@ import { useOrders } from "./hooks/useOrders";
 import { usePackages } from "./hooks/usePackages";
 import { useSettings } from "./hooks/useSettings";
 import { useMachines } from "./hooks/useMachines";
+import type { JobOrder } from "@tlp/shared";
+import type { NewOrderPayload } from "./components/overview/JobOrderForm";
 import {
   mockJobOrders,
   mockSales,
@@ -33,7 +35,7 @@ export default function App() {
   const [draftThreshold, setDraftThreshold] = useState(String(tubCleanThreshold));
   useEffect(() => { setDraftThreshold(String(tubCleanThreshold)); }, [tubCleanThreshold]);
   const [confirmCleanId, setConfirmCleanId] = useState<string | null>(null);
-  const { orders, updateOrder } = useOrders("b1", mockJobOrders);
+  const { orders, updateOrder, addOrder } = useOrders("b1", mockJobOrders);
 
   // Server calls run one after another so e.g. "restart" (release, then assign) can't race itself.
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -58,6 +60,27 @@ export default function App() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) throw new Error(data?.message ?? "Something went wrong. Try again.");
     return data;
+  };
+
+  const handleCreateOrder = async (payload: NewOrderPayload): Promise<JobOrder> => {
+    try {
+      const data = await callApi("/api/orders/create", payload);
+      addOrder(data.jobOrder);
+      return data.jobOrder as JobOrder;
+    } catch (e) {
+      throw e instanceof Error ? e : new Error("Couldn't save the order. Try again.");
+    }
+  };
+
+  const handleVoidOrder = async (orderId: string) => {
+    try {
+      const data = await callApi("/api/orders/void", { orderId });
+      updateOrder(data.jobOrder);
+      await refreshMachines();
+    } catch (e) {
+      showNotice(e instanceof Error ? e.message : "Couldn't void the order.");
+      throw e;
+    }
   };
 
   const handleAssign = (orderId: string, machineId: string, productId: string, lineId: string) =>
@@ -170,6 +193,8 @@ export default function App() {
                   isAdmin={isAdmin}
                   showCreate={showCreateOrder}
                   onCloseCreate={() => setShowCreateOrder(false)}
+                  onCreateOrder={handleCreateOrder}
+                  onVoidOrder={handleVoidOrder}
                   onAssign={handleAssign}
                   onUnassign={handleUnassign}
                 />

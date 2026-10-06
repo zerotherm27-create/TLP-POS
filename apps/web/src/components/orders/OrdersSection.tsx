@@ -5,7 +5,7 @@ import {
   WashingMachine, Wind, X, ChevronRight, RotateCcw, ArrowLeftRight,
 } from "lucide-react";
 import type { JobOrder, Product, Machine, FulfillmentStage, ServicePackage } from "@tlp/shared";
-import JobOrderForm from "../overview/JobOrderForm";
+import JobOrderForm, { type NewOrderPayload } from "../overview/JobOrderForm";
 import { formatPeso, formatTime, formatDateTime } from "../../lib/format";
 
 /* ── Stage config ── */
@@ -479,11 +479,13 @@ interface Props {
   isAdmin?: boolean;
   showCreate?: boolean;
   onCloseCreate?: () => void;
+  onCreateOrder?: (payload: NewOrderPayload) => Promise<JobOrder>;
+  onVoidOrder?: (orderId: string) => Promise<void>;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
 }
 
-export default function OrdersSection({ orders: initialOrders, products, packages, machines, isAdmin, showCreate, onCloseCreate, onAssign, onUnassign }: Props) {
+export default function OrdersSection({ orders: initialOrders, products, packages, machines, isAdmin, showCreate, onCloseCreate, onCreateOrder, onVoidOrder, onAssign, onUnassign }: Props) {
   const [orders, setOrders] = useState(initialOrders);
 
   useEffect(() => { setOrders(initialOrders); }, [initialOrders]);
@@ -508,7 +510,23 @@ export default function OrdersSection({ orders: initialOrders, products, package
 
   const selected = orders.find((o) => o.id === selectedId) ?? null;
 
-  const handleVoid = (id: string) => {
+  const handleCheckout = async (payload: NewOrderPayload) => {
+    if (!onCreateOrder) return;
+    const created = await onCreateOrder(payload);
+    setSelectedId(created.id);
+    onCloseCreate?.();
+  };
+
+  const handleVoid = async (id: string) => {
+    if (onVoidOrder) {
+      try {
+        await onVoidOrder(id);
+      } catch {
+        return; // the app shows the error
+      }
+      setSelectedId(null);
+      return;
+    }
     setOrders((prev) =>
       prev.map((o) =>
         o.id === id
@@ -612,7 +630,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
                   </button>
                 )}
               </div>
-              <JobOrderForm products={products} packages={packages} />
+              <JobOrderForm products={products} packages={packages} onCheckout={handleCheckout} />
             </motion.div>
           ) : selected ? (
             <DetailPanel
@@ -671,7 +689,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
                   </button>
                 )}
               </div>
-              <JobOrderForm products={products} packages={packages} />
+              <JobOrderForm products={products} packages={packages} onCheckout={handleCheckout} />
             </motion.div>
           </>
         )}
