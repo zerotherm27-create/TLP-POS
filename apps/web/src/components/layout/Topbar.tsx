@@ -42,8 +42,9 @@ export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onS
 
   return (
     <header className="flex items-center justify-between px-4 md:px-6 py-3.5 bg-white border-b border-zinc-100/80 sticky top-0 z-30">
-      <img src="/logo-mark.png" alt="" className="md:hidden w-8 h-8 rounded-lg bg-white mr-3 shrink-0" />
       <div className="min-w-0 mr-auto">
+        {/* Phones have no sidebar, so the brand logo lives here */}
+        <img src="/tlp-logo.png" alt="The Laundry Project" className="md:hidden h-6 w-auto mb-1.5" />
         <h1 className="text-[15px] font-bold text-zinc-900 leading-none tracking-tight truncate">
           {title}
         </h1>
