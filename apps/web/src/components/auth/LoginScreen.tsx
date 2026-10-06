@@ -3,7 +3,7 @@ import { WashingMachine } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { authConfigured } from "../../lib/supabase";
 
-export const APP_NAME = "TLP POS";
+export const APP_NAME = "LaundroDesk";
 
 export default function LoginScreen({ noAccess }: { noAccess?: boolean }) {
   const { signIn, signOut, email: signedInAs } = useAuth();

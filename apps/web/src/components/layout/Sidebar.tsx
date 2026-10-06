@@ -47,8 +47,8 @@ export default function Sidebar({ active, isAdmin, role, onChangeSection, onTogg
             <WashingMachine size={16} strokeWidth={2} className="text-white" />
           </div>
           <div>
-            <div className="text-white font-semibold text-sm leading-none tracking-tight">TLP POS</div>
-            <div className="text-white/50 text-[11px] leading-tight mt-0.5">The Laundry Project</div>
+            <div className="text-white font-semibold text-sm leading-none tracking-tight">LaundroDesk</div>
+            <div className="text-white/50 text-[11px] leading-tight mt-0.5">by The Laundry Project</div>
           </div>
         </div>
       </div>
