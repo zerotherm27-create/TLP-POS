@@ -41,13 +41,13 @@ export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onS
   const SyncIcon = sync === "ok" ? Check : sync === "error" ? AlertCircle : RefreshCw;
 
   return (
-    <header className="flex items-center justify-between px-5 md:px-6 py-3.5 bg-white border-b border-zinc-100/80 sticky top-0 z-30">
+    <header className="flex items-center justify-between px-4 md:px-6 py-3.5 bg-white border-b border-zinc-100/80 sticky top-0 z-30">
       <img src="/logo-mark.png" alt="" className="md:hidden w-8 h-8 rounded-lg bg-white mr-3 shrink-0" />
       <div className="min-w-0 mr-auto">
         <h1 className="text-[15px] font-bold text-zinc-900 leading-none tracking-tight truncate">
           {title}
         </h1>
-        <p className="text-[11px] text-zinc-400 mt-0.5 leading-none">{subtitle}</p>
+        <p className="hidden sm:block text-[11px] text-zinc-400 mt-0.5 leading-none">{subtitle}</p>
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0 ml-4">
@@ -61,7 +61,7 @@ export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onS
             className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
             style={{ background: isAdmin ? "#009eb5" : "#4a6d73" }}
           >{isAdmin ? "A" : "S"}</span>
-          {isAdmin ? "Admin" : "Staff"}
+          <span className="hidden min-[430px]:inline">{isAdmin ? "Admin" : "Staff"}</span>
           <LogOut size={12} className="text-zinc-400" />
         </button>
         {isAdmin && onSyncLaundrobot && (
@@ -92,7 +92,8 @@ export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onS
             }}
           >
             <Plus size={13} strokeWidth={2.5} />
-            <span>New Job Order</span>
+            <span className="hidden min-[430px]:inline">New Job Order</span>
+            <span className="min-[430px]:hidden">New</span>
           </button>
         )}
       </div>

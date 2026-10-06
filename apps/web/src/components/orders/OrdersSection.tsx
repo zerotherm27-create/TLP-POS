@@ -652,7 +652,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onCloseCreate}
-              className="lg:hidden fixed inset-0 bg-black/30 z-40"
+              className="lg:hidden fixed inset-0 bg-black/30 z-[55]"
             />
             <motion.div
               key="create-drawer"
@@ -660,14 +660,14 @@ export default function OrdersSection({ orders: initialOrders, products, package
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 340, damping: 32 }}
-              className="lg:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white overflow-auto"
-              style={{ maxHeight: "90dvh" }}
+              className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] rounded-t-3xl bg-white overflow-auto"
+              style={{ maxHeight: "92dvh", paddingBottom: "env(safe-area-inset-bottom)" }}
             >
-              <div className="flex items-center justify-between px-5 pt-4 pb-0">
-                <span className="text-sm font-bold text-zinc-900">New Job Order</span>
+              <div className="sticky top-0 z-10 bg-white flex items-center justify-between px-5 pt-5 pb-2">
+                <span className="text-base font-bold text-zinc-900">New Job Order</span>
                 {onCloseCreate && (
-                  <button onClick={onCloseCreate} className="w-7 h-7 flex items-center justify-center rounded-xl text-zinc-300 hover:text-zinc-500 transition-colors">
-                    <X size={14} />
+                  <button onClick={onCloseCreate} aria-label="Close" className="w-9 h-9 flex items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 transition-colors">
+                    <X size={16} />
                   </button>
                 )}
               </div>

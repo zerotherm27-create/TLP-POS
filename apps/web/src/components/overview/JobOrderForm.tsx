@@ -53,9 +53,7 @@ export default function JobOrderForm({ products, packages }: Props) {
   const canSubmit = customerName.trim() && selections.length > 0;
 
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-zinc-700 tracking-tight">New Job Order</h2>
-
+    <div className="flex flex-col gap-5 px-5 pt-4 pb-6">
       {/* Customer info */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
@@ -66,7 +64,7 @@ export default function JobOrderForm({ products, packages }: Props) {
             value={customerName}
             onChange={(e) => setCustomerName(e.target.value)}
             placeholder="Full name"
-            className="w-full h-9 px-3 rounded-xl border border-zinc-200 bg-zinc-50/50 text-sm text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
+            className="w-full h-11 sm:h-9 px-3.5 sm:px-3 rounded-xl border border-zinc-200 bg-zinc-50/50 text-sm text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -77,7 +75,7 @@ export default function JobOrderForm({ products, packages }: Props) {
             value={contactNumber}
             onChange={(e) => setContactNumber(e.target.value)}
             placeholder="+63 9XX XXX XXXX"
-            className="w-full h-9 px-3 rounded-xl border border-zinc-200 bg-zinc-50/50 text-sm text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
+            className="w-full h-11 sm:h-9 px-3.5 sm:px-3 rounded-xl border border-zinc-200 bg-zinc-50/50 text-sm text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
           />
         </div>
       </div>
