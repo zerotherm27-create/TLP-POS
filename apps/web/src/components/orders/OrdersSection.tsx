@@ -179,6 +179,16 @@ function DetailPanel({
 
   const assignedLineIds = new Set(order.assignments.map((a) => a.lineId));
 
+  // All washers done when none of their machines is still running
+  const washerAssignments = order.assignments.filter((a) => {
+    const p = products.find((p) => p.id === a.productId);
+    return p?.machineKind === "washer";
+  });
+  const anyWasherRunning = washerAssignments.some(
+    (a) => machines.find((m) => m.id === a.machineId)?.status === "running"
+  );
+  const washersDone = washerAssignments.length === 0 || !anyWasherRunning;
+
   // Each load has a machine size: regular, or large (the bigger W5 + D5). Offer only that size unless overridden.
   const machineTier = (m: Machine) => (m.tier === "titan" ? "titan" : "giant");
   const loadTier = (line: { tier?: "giant" | "titan" }) =>
