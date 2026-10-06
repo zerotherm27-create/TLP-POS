@@ -42,12 +42,12 @@ export default function Sidebar({ active, isAdmin, role, onChangeSection, onTogg
     >
       {/* Brand */}
       <div className="px-5 pt-6 pb-4">
-        <div className="flex items-center gap-2.5">
-          <img src="/logo-mark.png" alt="" className="w-8 h-8 rounded-xl bg-white shrink-0" />
-          <div>
-            <div className="text-white font-semibold text-sm leading-none tracking-tight">The Laundry Project</div>
-            <div className="text-white/50 text-[11px] leading-tight mt-0.5">Powered by: LaundroDesk</div>
-          </div>
+        <div className="rounded-xl bg-white px-3 py-2.5">
+          <img src="/tlp-logo.png" alt="The Laundry Project" className="w-full h-auto" />
+        </div>
+        <div className="flex items-center justify-center gap-1.5 mt-2.5 text-white/55 text-[11px] leading-none">
+          <span>Powered by:</span>
+          <span className="font-semibold text-white/85">LaundroDesk</span>
         </div>
       </div>
 
