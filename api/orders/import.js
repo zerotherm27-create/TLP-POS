@@ -43,7 +43,16 @@ export default async function handler(req, res) {
       return;
     }
 
-    const rawOrder = { ...body, id: String(body.id) };
+    if (
+      body.services.length > 20 ||
+      String(body.id).length > 64 ||
+      typeof body.customerName !== "string" || body.customerName.length > 120
+    ) {
+      sendJson(res, 400, { ok: false, message: "Order is too large or has invalid fields." });
+      return;
+    }
+
+    const rawOrder = { ...body, id: String(body.id), customerName: body.customerName.trim().slice(0, 80) };
     const mapped = mapLaundrobotOrder(rawOrder, { largeKg: await loadLargeLoadKg(), packages: await loadPackages() });
     if (!mapped) {
       // Order has no machine-wash/dry services — nothing to do in TLP POS

@@ -1,4 +1,5 @@
 import { requireUser } from "../_auth.js";
+import { loadProducts } from "../_catalog.js";
 import { freeMachinePatch, fromMachineRow } from "../_machines.js";
 import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
@@ -16,7 +17,7 @@ export default async function handler(req, res) {
     if (!ensurePost(req, res)) return;
     if (!(await requireUser(req, res))) return;
 
-    const { orderId, machineId, productId, lineId, durationMinutes } = await readJson(req);
+    const { orderId, machineId, productId, lineId } = await readJson(req);
     if (!orderId || !machineId || !productId || !lineId) {
       sendJson(res, 400, { ok: false, message: "orderId, machineId, productId, and lineId are required." });
       return;
@@ -26,12 +27,6 @@ export default async function handler(req, res) {
     const UUID_RE = /^[0-9a-f-]{36}$/;
     if (!ID_RE.test(orderId) || !ID_RE.test(machineId) || !ID_RE.test(productId) || !UUID_RE.test(lineId)) {
       sendJson(res, 400, { ok: false, message: "Invalid id format." });
-      return;
-    }
-
-    const minutes = Number(durationMinutes);
-    if (!Number.isFinite(minutes) || minutes <= 0 || minutes > 600) {
-      sendJson(res, 400, { ok: false, message: "A valid cycle length (durationMinutes) is required." });
       return;
     }
 
@@ -49,12 +44,27 @@ export default async function handler(req, res) {
       return;
     }
 
+    // The load must belong to this order, and its cycle length comes from the program on that load, never from the request.
+    const products = await loadProducts();
+    const line = order.services.find((l) => l.lineId === lineId);
+    if (!line || line.productId !== productId) {
+      sendJson(res, 400, { ok: false, message: "That load isn't part of this order." });
+      return;
+    }
+    const product = products.find((p) => p.id === line.productId);
+    const minutes = Number(product?.durationMinutes);
+    if (!Number.isFinite(minutes) || minutes <= 0 || minutes > 600) {
+      sendJson(res, 400, { ok: false, message: "This load's program has no valid cycle length." });
+      return;
+    }
+
     const alreadyLine = order.assignments.find((a) => a.lineId === lineId);
     if (alreadyLine) {
       sendJson(res, 400, { ok: false, message: "This load is already assigned to a machine." });
       return;
     }
-    const alreadyMachine = order.assignments.find((a) => a.machineId === machineId);
+    // A machine that already finished its load for this order can take the next one (e.g. two large bags, one large washer).
+    const alreadyMachine = order.assignments.find((a) => a.machineId === machineId && !a.finishedAt);
     if (alreadyMachine) {
       sendJson(res, 400, { ok: false, message: "Machine already assigned to this order." });
       return;
@@ -66,18 +76,11 @@ export default async function handler(req, res) {
     order.status = "in_progress";
     order.updatedAt = now;
 
-    let products = [];
-    try {
-      const { createRequire } = await import("module");
-      const require = createRequire(import.meta.url);
-      products = require("../_products.json");
-    } catch {}
-
     order.fulfillmentStage = computeStage(order, products);
 
     // Claim the machine first, and only if it is still free (guards against two people assigning at once).
     const claimed = await supabaseRequest(
-      `tlp_machines?id=eq.${encodeURIComponent(machineId)}&status=eq.online`,
+      `tlp_machines?id=eq.${encodeURIComponent(machineId)}&status=eq.online&kind=eq.${product.machineKind}`,
       {
         method: "PATCH",
         body: JSON.stringify({
@@ -95,7 +98,7 @@ export default async function handler(req, res) {
       const known = await supabaseRequest(`tlp_machines?id=eq.${encodeURIComponent(machineId)}&select=id&limit=1`);
       sendJson(res, known?.length ? 409 : 404, {
         ok: false,
-        message: known?.length ? "That machine isn't available right now." : "Machine not found.",
+        message: known?.length ? "That machine isn't available for this load right now." : "Machine not found.",
       });
       return;
     }

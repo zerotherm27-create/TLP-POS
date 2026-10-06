@@ -8,7 +8,7 @@ const UUID_RE = /^[0-9a-f-]{36}$/;
 export default async function handler(req, res) {
   try {
     if (!ensurePost(req, res)) return;
-    const auth = await requireUser(req, res);
+    const auth = await requireUser(req, res); // staff and admin (the reason is logged with their email)
     if (!auth) return;
 
     const { orderId, lineId, machineId, reason, mode } = await readJson(req);

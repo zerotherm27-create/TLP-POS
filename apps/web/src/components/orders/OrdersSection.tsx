@@ -397,7 +397,7 @@ function DetailPanel({
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[11px] text-zinc-400 mr-1">{product?.name}</span>
-                        {isAdmin && isActive && onUnassign && (
+                        {isActive && onUnassign && (
                           <>
                             <button
                               onClick={() => {

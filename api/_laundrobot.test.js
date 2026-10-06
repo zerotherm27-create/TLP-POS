@@ -189,3 +189,14 @@ test("add-ons are spread across the bags: +10 x1 on two bags extends one bag, +1
   assert.deepEqual(run([]), ["p2", "p5", "p2", "p5"]);
   assert.deepEqual(run(undefined), ["p2", "p5", "p2", "p5"]);
 });
+
+test("a huge bag count is capped and a nonsense price is clamped", () => {
+  const big = mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, quantity: 1_000_000_000, priceCents: 33000 }]));
+  assert.equal(big.services.length, 20);
+  const wild = mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, quantity: 1, priceCents: -5 }]));
+  assert.equal(wild.services[0].priceCents, 0);
+  const huge = mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, quantity: 1, priceCents: 9e15 }]));
+  assert.equal(huge.services[0].priceCents, 10_000_000);
+  const text = mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, quantity: 1, priceCents: "abc" }]));
+  assert.equal(text.services[0].priceCents, undefined);
+});

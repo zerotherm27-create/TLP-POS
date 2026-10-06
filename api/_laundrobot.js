@@ -14,38 +14,6 @@ export const PACKAGE_RULES = [
   { test: /full service|machine wash/i, packageName: "FULL - CARE EXPRESS" },
 ];
 
-export const requireSyncToken = (req) => {
-  const expected = process.env.LAUNDROBOT_SYNC_TOKEN;
-  if (!expected) return;
-  const received = req.headers.authorization?.replace(/^Bearer\s+/i, "");
-  if (received !== expected) {
-    throw new Error("Invalid LaundroBot sync token.");
-  }
-};
-
-export const fetchLaundrobotOrders = async () => {
-  const baseUrl = process.env.LAUNDROBOT_API_URL;
-  const apiKey = process.env.LAUNDROBOT_API_KEY;
-
-  if (!baseUrl) {
-    throw new Error("LAUNDROBOT_API_URL is not configured.");
-  }
-
-  const res = await fetch(`${baseUrl}/api/orders?status=pending`, {
-    headers: {
-      "x-api-key": apiKey ?? "",
-      "content-type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`LaundroBot API responded with ${res.status}.`);
-  }
-
-  const data = await res.json();
-  return Array.isArray(data) ? data : (data.orders ?? []);
-};
-
 // LaundroBot raw order format:
 // {
 //   id: string,
@@ -61,7 +29,10 @@ export const mapLaundrobotOrder = (rawOrder, { largeKg = 10, packages = [] } = {
   // Other kinds (handwash, dryclean, fold, etc.) are silently skipped.
   let matchedPackage = null;
   const services = (rawOrder.services ?? []).flatMap((s) => {
-    const count = Math.max(1, Math.round(Number(s.quantity ?? 1)) || 1);
+    const count = Math.min(20, Math.max(1, Math.round(Number(s.quantity ?? 1)) || 1)); // at most 20 bags per row
+    // The row's total price in cents: a sane number from 0 to 100,000 pesos, or unknown.
+    const rawCents = s.priceCents == null ? NaN : Number(s.priceCents);
+    const rowCents = Number.isFinite(rawCents) ? Math.min(10_000_000, Math.max(0, Math.round(rawCents))) : undefined;
 
     // What the customer picked, in the words LaundroBot uses (e.g. "CLOTHES FULL SERVICE GIANT (max 8kg / load)").
     const serviceName = typeof s.serviceName === "string" ? s.serviceName.trim() : "";
@@ -96,7 +67,7 @@ export const mapLaundrobotOrder = (rawOrder, { largeKg = 10, packages = [] } = {
       const programs = pkg.services.map((id) => products.find((p) => p.id === id)).filter(Boolean);
       if (programs.length > 0) {
         matchedPackage = matchedPackage ?? pkg;
-        const perBagCents = s.priceCents != null ? Math.round(s.priceCents / count) : undefined;
+        const perBagCents = rowCents != null ? Math.round(rowCents / count) : undefined;
         const shares = perBagCents != null ? allocatePackagePrice(perBagCents, programs) : [];
         // "+10 Mins Wash/Dry" add-ons: each 10-minute unit goes to a different bag in turn (bag 1, bag 2, ...), so
         // "+10 x 1" on two bags extends one bag, and "+10 x 2" extends both. Each bag's extra merges into a program.
@@ -128,7 +99,7 @@ export const mapLaundrobotOrder = (rawOrder, { largeKg = 10, packages = [] } = {
     if (!product) return []; // not a machine service — skip
 
     // Expand quantity into one line per load so each load gets its own machine assignment.
-    const pricePerLoad = s.priceCents != null ? Math.round(s.priceCents / count) : undefined;
+    const pricePerLoad = rowCents != null ? Math.round(rowCents / count) : undefined;
     return Array.from({ length: count }, () => ({
       lineId: crypto.randomUUID(),
       productId: product.id,
