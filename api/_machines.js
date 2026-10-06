@@ -57,9 +57,10 @@ export const recordCycleEnd = async (row, { endedAt, minutes }) => {
       const safeId = encodeURIComponent(row.active_job_order_id);
       const rows = await supabaseRequest(`tlp_job_orders?id=eq.${safeId}&select=assignments&limit=1`);
       const assignments = rows?.[0]?.assignments ?? [];
+      // Every load of this order that was on this machine ends now (extra-time add-ons share the machine).
       let stamped = false;
       const next = assignments.map((a) => {
-        if (!stamped && a.machineId === row.id && !a.finishedAt) {
+        if (a.machineId === row.id && !a.finishedAt) {
           stamped = true;
           return { ...a, finishedAt: endedAt };
         }

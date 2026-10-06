@@ -90,6 +90,16 @@ export default function App() {
     }
   };
 
+  const handleAddExtra = async (orderId: string, lineId: string, productId: string) => {
+    try {
+      const data = await callApi("/api/orders/add-extra", { orderId, lineId, productId });
+      updateOrder(data.jobOrder);
+    } catch (e) {
+      showNotice(e instanceof Error ? e.message : "Couldn't add the extra time.");
+    }
+    await refreshMachines();
+  };
+
   const handleVoidOrder = async (orderId: string) => {
     try {
       const data = await callApi("/api/orders/void", { orderId });
@@ -239,6 +249,7 @@ export default function App() {
                   onCreateOrder={handleCreateOrder}
                   onVoidOrder={handleVoidOrder}
                   onAddService={handleAddService}
+                  onAddExtra={handleAddExtra}
                   onFinishMachine={handleFinishMachine}
                   onAssign={handleAssign}
                   onUnassign={handleUnassign}
