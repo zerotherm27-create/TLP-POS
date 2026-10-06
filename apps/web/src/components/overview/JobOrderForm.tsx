@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Minus, CreditCard, Banknote, Smartphone } from "lucide-react";
+import { Plus, Minus, CreditCard, Banknote, Smartphone, Check } from "lucide-react";
 import type { Product, ServicePackage, PaymentMethod } from "@tlp/shared";
 import { formatPeso } from "../../lib/format";
 
@@ -38,9 +38,15 @@ export default function JobOrderForm({ products, packages }: Props) {
     });
   };
 
+  // A package counts as selected while the chosen services match it exactly.
+  const isPackageActive = (pkg: ServicePackage) =>
+    pkg.services.length > 0 &&
+    selections.length === pkg.services.length &&
+    pkg.services.every((id) => selections.some((s) => s.productId === id));
+
   const applyPackage = (pkg: ServicePackage) => {
-    const newSelections = pkg.services.map((id) => ({ productId: id, quantity: 1 }));
-    setSelections(newSelections);
+    if (isPackageActive(pkg)) { setSelections([]); return; } // tap again to deselect
+    setSelections(pkg.services.map((id) => ({ productId: id, quantity: 1 })));
   };
 
   const total = selections.reduce((sum, sel) => {
@@ -100,17 +106,30 @@ export default function JobOrderForm({ products, packages }: Props) {
             Quick packages
           </label>
           <div className="flex flex-wrap gap-2">
-            {packages.map((pkg) => (
-              <button
-                key={pkg.id}
-                onClick={() => applyPackage(pkg)}
-                className={`px-3 py-1.5 border border-[#009eb5]/30 text-[#007a8c] text-xs font-medium hover:bg-[#009eb5]/8 active:scale-[0.97] transition-all text-left ${pkg.description ? "rounded-xl" : "rounded-full"}`}
-                style={{ background: "#e0f6fa" }}
-              >
-                <div>{pkg.name}</div>
-                {pkg.description && <div className="text-[10px] font-normal text-[#009eb5] leading-tight mt-0.5">{pkg.description}</div>}
-              </button>
-            ))}
+            {packages.map((pkg) => {
+              const active = isPackageActive(pkg);
+              return (
+                <button
+                  key={pkg.id}
+                  onClick={() => applyPackage(pkg)}
+                  aria-pressed={active}
+                  className={`px-3 py-1.5 border text-xs font-medium active:scale-[0.97] transition-all text-left ${pkg.description ? "rounded-xl" : "rounded-full"} ${
+                    active
+                      ? "bg-[#007a8c] border-[#007a8c] text-white shadow-md"
+                      : "border-[#009eb5]/30 text-[#007a8c] hover:bg-[#009eb5]/8"
+                  }`}
+                  style={active ? undefined : { background: "#e0f6fa" }}
+                >
+                  <div className="flex items-center gap-1.5">
+                    {active && <Check size={12} strokeWidth={3} />}
+                    {pkg.name}
+                  </div>
+                  {pkg.description && (
+                    <div className={`text-[10px] font-normal leading-tight mt-0.5 ${active ? "text-white/80" : "text-[#009eb5]"}`}>{pkg.description}</div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
