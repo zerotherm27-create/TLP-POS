@@ -79,7 +79,7 @@ export default function MachineDetailSheet({ machine, order, products, threshold
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/30 z-40"
+        className="fixed inset-0 bg-black/30 z-[55]"
       />
       <motion.div
         key="detail-sheet"
@@ -87,7 +87,7 @@ export default function MachineDetailSheet({ machine, order, products, threshold
         animate={{ y: 0 }}
         exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 340, damping: 32 }}
-        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white overflow-hidden flex flex-col sm:max-w-md sm:mx-auto"
+        className="fixed bottom-0 left-0 right-0 z-[60] rounded-t-3xl bg-white overflow-hidden flex flex-col sm:max-w-md sm:mx-auto"
         style={{ maxHeight: "80dvh" }}
       >
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-zinc-100">

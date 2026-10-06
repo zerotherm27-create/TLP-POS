@@ -706,7 +706,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedId(null)}
-              className="lg:hidden fixed inset-0 bg-black/30 z-40"
+              className="lg:hidden fixed inset-0 bg-black/30 z-[55]"
             />
             {/* Drawer */}
             <motion.div
@@ -715,8 +715,8 @@ export default function OrdersSection({ orders: initialOrders, products, package
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 340, damping: 32 }}
-              className="lg:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl overflow-hidden"
-              style={{ maxHeight: "85dvh" }}
+              className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] rounded-t-3xl bg-white overflow-y-auto"
+              style={{ maxHeight: "90dvh", paddingBottom: "env(safe-area-inset-bottom)" }}
             >
               <DetailPanel
                 order={selected}
