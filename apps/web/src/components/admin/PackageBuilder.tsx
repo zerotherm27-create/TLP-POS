@@ -12,6 +12,7 @@ interface Props {
 
 export default function PackageBuilder({ products, packages, onChange }: Props) {
   const [pkgName, setPkgName] = useState("");
+  const [pkgDesc, setPkgDesc] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
 
   const toggle = (productId: string) => {
@@ -25,11 +26,13 @@ export default function PackageBuilder({ products, packages, onChange }: Props) 
     const newPkg: ServicePackage = {
       id: `pkg-${Date.now()}`,
       name: pkgName.trim(),
+      description: pkgDesc.trim() || undefined,
       services: selected,
       createdAt: new Date().toISOString(),
     };
     onChange([newPkg, ...packages]);
     setPkgName("");
+    setPkgDesc("");
     setSelected([]);
   };
 
@@ -59,6 +62,19 @@ export default function PackageBuilder({ products, packages, onChange }: Props) 
               value={pkgName}
               onChange={(e) => setPkgName(e.target.value)}
               placeholder="e.g. Wash & Dry Bundle"
+              className="w-full h-9 px-3 rounded-xl border border-zinc-200 bg-zinc-50/50 text-sm text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+              Sub description <span className="text-zinc-300 normal-case font-normal">(optional)</span>
+            </label>
+            <input
+              value={pkgDesc}
+              onChange={(e) => setPkgDesc(e.target.value)}
+              maxLength={80}
+              placeholder="e.g. 8kg wash + 30 min dry, folded"
               className="w-full h-9 px-3 rounded-xl border border-zinc-200 bg-zinc-50/50 text-sm text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
             />
           </div>
@@ -145,6 +161,7 @@ export default function PackageBuilder({ products, packages, onChange }: Props) 
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-zinc-900">{pkg.name}</div>
+                  {pkg.description && <div className="text-xs text-zinc-400 mt-0.5">{pkg.description}</div>}
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {pkg.services.map((id) => {
                       const p = products.find((pr) => pr.id === id);

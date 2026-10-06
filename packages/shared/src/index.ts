@@ -29,6 +29,7 @@ export interface Branch {
 export interface ServicePackage {
   id: string;
   name: string;
+  description?: string; // short sub-description shown under the name
   services: string[]; // product IDs
   createdAt: string;
 }

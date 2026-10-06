@@ -106,10 +106,11 @@ export default function JobOrderForm({ products, packages }: Props) {
               <button
                 key={pkg.id}
                 onClick={() => applyPackage(pkg)}
-                className="px-3 py-1.5 rounded-full border border-[#009eb5]/30 text-[#007a8c] text-xs font-medium hover:bg-[#009eb5]/8 active:scale-[0.97] transition-all"
+                className={`px-3 py-1.5 border border-[#009eb5]/30 text-[#007a8c] text-xs font-medium hover:bg-[#009eb5]/8 active:scale-[0.97] transition-all text-left ${pkg.description ? "rounded-xl" : "rounded-full"}`}
                 style={{ background: "#e0f6fa" }}
               >
-                {pkg.name}
+                <div>{pkg.name}</div>
+                {pkg.description && <div className="text-[10px] font-normal text-[#009eb5] leading-tight mt-0.5">{pkg.description}</div>}
               </button>
             ))}
           </div>
