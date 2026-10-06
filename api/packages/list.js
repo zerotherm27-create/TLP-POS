@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     }
     if (!(await requireUser(req, res))) return;
 
-    const rows = await supabaseRequest("tlp_packages?branch_id=eq.b1&order=created_at.desc&limit=200");
+    const rows = await supabaseRequest("tlp_packages?branch_id=eq.b1&order=position.asc,created_at.asc&limit=200");
     const packages = (rows ?? []).map((r) => ({
       id: r.id,
       name: r.name,

@@ -35,7 +35,7 @@ export function usePackages() {
   };
 
   const createPackage = async (pkg: ServicePackage) => {
-    setPackages((prev) => [pkg, ...prev]); // show instantly, roll back if the save fails
+    setPackages((prev) => [...prev, pkg]); // new packages go last; show instantly, roll back if the save fails
     try {
       await post("/api/packages/save", pkg);
       setError(null);
@@ -57,5 +57,22 @@ export function usePackages() {
     }
   };
 
-  return { packages, error, createPackage, removePackage };
+  const movePackage = async (id: string, direction: -1 | 1) => {
+    const before = packages;
+    const from = before.findIndex((p) => p.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= before.length) return;
+    const next = [...before];
+    [next[from], next[to]] = [next[to], next[from]];
+    setPackages(next);
+    try {
+      await post("/api/packages/reorder", { ids: next.map((p) => p.id) });
+      setError(null);
+    } catch (e) {
+      setPackages(before);
+      setError(e instanceof Error ? e.message : "Couldn't save the new order.");
+    }
+  };
+
+  return { packages, error, createPackage, removePackage, movePackage };
 }

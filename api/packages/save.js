@@ -21,6 +21,10 @@ export default async function handler(req, res) {
       return;
     }
 
+    // New packages go to the end of the order.
+    const last = await supabaseRequest("tlp_packages?select=position&branch_id=eq.b1&order=position.desc&limit=1");
+    const position = (last?.[0]?.position ?? 0) + 1;
+
     await supabaseRequest("tlp_packages?on_conflict=id", {
       method: "POST",
       body: JSON.stringify({
@@ -29,6 +33,7 @@ export default async function handler(req, res) {
         name: cleanName,
         description: cleanDesc || null,
         services,
+        position,
       }),
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
     });

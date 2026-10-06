@@ -28,7 +28,7 @@ export default function App() {
   const { role, isAdmin, signOut } = useRole();
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
   const { products, tubCleanThreshold, settingsError, setProducts, setTubCleanThreshold } = useSettings();
-  const { packages, error: packagesError, createPackage, removePackage } = usePackages();
+  const { packages, error: packagesError, createPackage, removePackage, movePackage } = usePackages();
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines">("programs");
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [draftThreshold, setDraftThreshold] = useState(String(tubCleanThreshold));
@@ -214,7 +214,7 @@ export default function App() {
                     </div>
                   )}
                   {adminTab === "packages" && (
-                    <PackageBuilder products={products} packages={packages} error={packagesError} onCreate={createPackage} onRemove={removePackage} />
+                    <PackageBuilder products={products} packages={packages} error={packagesError} onCreate={createPackage} onRemove={removePackage} onMove={movePackage} />
                   )}
                   {adminTab === "machines" && (
                     <div className="flex flex-col gap-5">

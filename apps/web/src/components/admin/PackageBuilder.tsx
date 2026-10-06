@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, Package } from "lucide-react";
+import { Plus, X, Package, ChevronUp, ChevronDown } from "lucide-react";
 import type { Product, ServicePackage } from "@tlp/shared";
 import { formatPeso } from "../../lib/format";
 
@@ -10,9 +10,10 @@ interface Props {
   error?: string | null;
   onCreate: (pkg: ServicePackage) => void;
   onRemove: (id: string) => void;
+  onMove: (id: string, direction: -1 | 1) => void;
 }
 
-export default function PackageBuilder({ products, packages, error, onCreate, onRemove }: Props) {
+export default function PackageBuilder({ products, packages, error, onCreate, onRemove, onMove }: Props) {
   const [pkgName, setPkgName] = useState("");
   const [pkgDesc, setPkgDesc] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -148,7 +149,7 @@ export default function PackageBuilder({ products, packages, error, onCreate, on
         )}
 
         <AnimatePresence initial={false}>
-          {packages.map((pkg) => {
+          {packages.map((pkg, index) => {
             const total = totalForPackage(pkg.services);
             return (
               <motion.div
@@ -175,6 +176,21 @@ export default function PackageBuilder({ products, packages, error, onCreate, on
                     })}
                   </div>
                   <div className="text-xs font-semibold text-[#009eb5] mt-1.5">{formatPeso(total)}</div>
+                </div>
+                <div className="flex flex-col items-center shrink-0 -ml-1" aria-label="Change order">
+                  <button
+                    onClick={() => onMove(pkg.id, -1)}
+                    disabled={index === 0}
+                    aria-label="Move up"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-[#009eb5] hover:bg-zinc-50 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+                  ><ChevronUp size={16} strokeWidth={2.5} /></button>
+                  <span className="text-[10px] font-bold text-zinc-300 tabular-nums leading-none">{index + 1}</span>
+                  <button
+                    onClick={() => onMove(pkg.id, 1)}
+                    disabled={index === packages.length - 1}
+                    aria-label="Move down"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-[#009eb5] hover:bg-zinc-50 disabled:opacity-25 disabled:pointer-events-none transition-colors"
+                  ><ChevronDown size={16} strokeWidth={2.5} /></button>
                 </div>
                 <button
                   onClick={() => onRemove(pkg.id)}
