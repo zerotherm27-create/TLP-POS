@@ -12,13 +12,13 @@ import OrdersSection from "./components/orders/OrdersSection";
 import { useRole } from "./hooks/useRole";
 import { authFetch } from "./lib/supabase";
 import { useOrders } from "./hooks/useOrders";
+import { usePackages } from "./hooks/usePackages";
 import type { Machine, Product } from "@tlp/shared";
 import {
   mockMachines,
   mockJobOrders,
   mockSales,
   mockProducts,
-  mockPackages,
 } from "./lib/mockData";
 
 const spring = { type: "spring" as const, stiffness: 320, damping: 30 };
@@ -28,7 +28,7 @@ export default function App() {
   const { role, isAdmin, signOut } = useRole();
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
   const [products, setProducts] = useState<Product[]>(mockProducts);
-  const [packages, setPackages] = useState(mockPackages);
+  const { packages, error: packagesError, createPackage, removePackage } = usePackages();
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines">("programs");
   const [showCreateOrder, setShowCreateOrder] = useState(false);
   const [tubCleanThreshold, setTubCleanThreshold] = useState(50);
@@ -211,7 +211,7 @@ export default function App() {
                     <ProductManager products={products} onChange={setProducts} />
                   )}
                   {adminTab === "packages" && (
-                    <PackageBuilder products={products} packages={packages} onChange={setPackages} />
+                    <PackageBuilder products={products} packages={packages} error={packagesError} onCreate={createPackage} onRemove={removePackage} />
                   )}
                   {adminTab === "machines" && (
                     <div className="flex flex-col gap-5">

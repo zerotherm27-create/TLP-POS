@@ -7,10 +7,12 @@ import { formatPeso } from "../../lib/format";
 interface Props {
   products: Product[];
   packages: ServicePackage[];
-  onChange: (packages: ServicePackage[]) => void;
+  error?: string | null;
+  onCreate: (pkg: ServicePackage) => void;
+  onRemove: (id: string) => void;
 }
 
-export default function PackageBuilder({ products, packages, onChange }: Props) {
+export default function PackageBuilder({ products, packages, error, onCreate, onRemove }: Props) {
   const [pkgName, setPkgName] = useState("");
   const [pkgDesc, setPkgDesc] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
@@ -30,13 +32,11 @@ export default function PackageBuilder({ products, packages, onChange }: Props) 
       services: selected,
       createdAt: new Date().toISOString(),
     };
-    onChange([newPkg, ...packages]);
+    onCreate(newPkg);
     setPkgName("");
     setPkgDesc("");
     setSelected([]);
   };
-
-  const remove = (id: string) => onChange(packages.filter((p) => p.id !== id));
 
   const totalForPackage = (serviceIds: string[]) =>
     serviceIds.reduce((sum, id) => {
@@ -135,6 +135,8 @@ export default function PackageBuilder({ products, packages, onChange }: Props) 
           <span className="text-xs text-zinc-400">{packages.length} packages</span>
         </div>
 
+        {error && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
+
         {packages.length === 0 && (
           <div className="bg-white rounded-2xl border border-zinc-100 p-8 text-center">
             <div className="w-10 h-10 rounded-2xl bg-zinc-50 flex items-center justify-center mx-auto mb-3">
@@ -175,7 +177,7 @@ export default function PackageBuilder({ products, packages, onChange }: Props) 
                   <div className="text-xs font-semibold text-[#009eb5] mt-1.5">{formatPeso(total)}</div>
                 </div>
                 <button
-                  onClick={() => remove(pkg.id)}
+                  onClick={() => onRemove(pkg.id)}
                   className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-300 hover:text-red-400 hover:bg-red-50 transition-colors shrink-0 mt-0.5"
                 >
                   <X size={14} />
