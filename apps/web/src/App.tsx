@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "./components/layout/Sidebar";
 import BottomNav, { type Section } from "./components/layout/BottomNav";
@@ -13,12 +13,12 @@ import { useRole } from "./hooks/useRole";
 import { authFetch } from "./lib/supabase";
 import { useOrders } from "./hooks/useOrders";
 import { usePackages } from "./hooks/usePackages";
-import type { Machine, Product } from "@tlp/shared";
+import { useSettings } from "./hooks/useSettings";
+import type { Machine } from "@tlp/shared";
 import {
   mockMachines,
   mockJobOrders,
   mockSales,
-  mockProducts,
 } from "./lib/mockData";
 
 const spring = { type: "spring" as const, stiffness: 320, damping: 30 };
@@ -27,12 +27,12 @@ export default function App() {
   const [section, setSection] = useState<Section>("overview");
   const { role, isAdmin, signOut } = useRole();
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const { products, tubCleanThreshold, settingsError, setProducts, setTubCleanThreshold } = useSettings();
   const { packages, error: packagesError, createPackage, removePackage } = usePackages();
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines">("programs");
   const [showCreateOrder, setShowCreateOrder] = useState(false);
-  const [tubCleanThreshold, setTubCleanThreshold] = useState(50);
-  const [draftThreshold, setDraftThreshold] = useState("50");
+  const [draftThreshold, setDraftThreshold] = useState(String(tubCleanThreshold));
+  useEffect(() => { setDraftThreshold(String(tubCleanThreshold)); }, [tubCleanThreshold]);
   const [confirmCleanId, setConfirmCleanId] = useState<string | null>(null);
   const { orders, updateOrder } = useOrders("b1", mockJobOrders);
 
@@ -63,7 +63,7 @@ export default function App() {
     if (order) {
       const newAssignment = { lineId, machineId, productId, assignedAt: new Date().toISOString() };
       const allAssigned = [...order.assignments, newAssignment];
-      const lastProduct = mockProducts.find((p) => p.id === productId);
+      const lastProduct = products.find((p) => p.id === productId);
       updateOrder({
         ...order,
         status: "in_progress",
@@ -185,7 +185,7 @@ export default function App() {
                 <TransactionTable
                   sales={mockSales}
                   orders={mockJobOrders}
-                  products={mockProducts}
+                  products={products}
                 />
               )}
               {section === "admin" && isAdmin && (
@@ -208,13 +208,18 @@ export default function App() {
                   </div>
 
                   {adminTab === "programs" && (
-                    <ProductManager products={products} onChange={setProducts} />
+                    <div className="flex flex-col gap-3">
+                      {settingsError && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{settingsError}</p>}
+                      <ProductManager products={products} onChange={setProducts} />
+                    </div>
                   )}
                   {adminTab === "packages" && (
                     <PackageBuilder products={products} packages={packages} error={packagesError} onCreate={createPackage} onRemove={removePackage} />
                   )}
                   {adminTab === "machines" && (
                     <div className="flex flex-col gap-5">
+                      {settingsError && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{settingsError}</p>}
+
                       {/* Tub cleaning threshold */}
                       <div className="bg-amber-50 border border-amber-200/70 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4">
                         <div className="flex-1">
