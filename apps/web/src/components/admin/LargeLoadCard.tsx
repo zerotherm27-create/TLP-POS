@@ -17,7 +17,7 @@ export default function LargeLoadCard({ kg, onSave }: Props) {
     <div className="bg-white rounded-2xl border border-zinc-100 p-4 sm:p-5" style={{ boxShadow: "0 2px 12px -4px rgba(0,0,0,0.06)" }}>
       <h2 className="text-sm font-semibold text-zinc-700 tracking-tight">Large loads</h2>
       <p className="text-[12px] text-zinc-400 mt-0.5 mb-3">
-        A LaundroBot load at or above this weight is marked Large, and the washer and dryer suggestions use W5 + D5.
+        A LaundroBot <strong>"Large bag"</strong> always goes to W5 + D5. As a backup, any load at or above this weight is treated as large too.
       </p>
       <div className="flex items-end gap-3">
         <div className="flex flex-col gap-1.5">

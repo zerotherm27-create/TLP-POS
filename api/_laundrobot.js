@@ -43,10 +43,10 @@ export const fetchLaundrobotOrders = async () => {
 //   contactNumber?: string,
 //   notes?: string,
 //   orderUrl?: string,
-//   services: [{ kind: string, durationMinutes?: number, quantity?: number, priceCents?: number }]
+//   services: [{ kind: string, durationMinutes?: number, quantity?: number, priceCents?: number, serviceName?: string, weightKg?: number }]
 // }
 // Returns null when the order contains no machine-wash/dry services (e.g. handwash, dryclean).
-export const mapLaundrobotOrder = (rawOrder, { largeKg = 12 } = {}) => {
+export const mapLaundrobotOrder = (rawOrder, { largeKg = 10 } = {}) => {
   // Only import services that map to a TLP machine product (washer/dryer).
   // Other kinds (handwash, dryclean, fold, etc.) are silently skipped.
   const services = (rawOrder.services ?? []).flatMap((s) => {
@@ -58,16 +58,19 @@ export const mapLaundrobotOrder = (rawOrder, { largeKg = 12 } = {}) => {
     // Expand quantity into one line per load so each load gets its own machine assignment.
     const count = s.quantity ?? 1;
     const pricePerLoad = s.priceCents != null ? Math.round(s.priceCents / count) : undefined;
-    // A heavy load (e.g. 12 kg) belongs in the larger machines (W5 / D5).
+    // A "Large bag" (about 10-12 kg) belongs in the larger machines (W5 / D5). The service name decides;
+    // a recorded weight at or above the threshold does too, as a backup for services that are priced per kg.
+    const serviceName = typeof s.serviceName === "string" ? s.serviceName.trim() : "";
     const weightKg = Number(s.weightKg);
     const hasWeight = Number.isFinite(weightKg) && weightKg > 0;
-    const large = hasWeight && weightKg >= largeKg;
+    const large = /\blarge\b/i.test(serviceName) || (hasWeight && weightKg >= largeKg);
     return Array.from({ length: count }, () => ({
       lineId: crypto.randomUUID(),
       productId: product.id,
       quantity: 1,
       priceCents: pricePerLoad,
       ...(hasWeight ? { weightKg } : {}),
+      ...(serviceName ? { note: serviceName } : {}),
       ...(large ? { tier: "titan" } : {}),
     }));
   });

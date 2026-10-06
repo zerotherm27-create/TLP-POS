@@ -14,7 +14,7 @@ export function useSettings() {
   const [products, setProductsState] = useState<Product[]>(mockProducts);
   const [tubCleanThreshold, setThresholdState] = useState(DEFAULT_THRESHOLD);
   const [extraRates, setExtraRatesState] = useState<ExtraRates>(NO_EXTRA_RATES);
-  const [largeLoadKg, setLargeLoadKgState] = useState(12);
+  const [largeLoadKg, setLargeLoadKgState] = useState(10);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {

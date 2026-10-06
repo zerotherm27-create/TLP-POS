@@ -34,3 +34,20 @@ test("one booking can mix a large and a regular load, each sized on its own", ()
   assert.deepEqual(m.services.map((l) => l.tier), ["titan", undefined]);
   assert.equal(m.tier, "titan"); // the order carries the Large tag if any load is large
 });
+
+test('a "Large bag" service goes to the larger machines; small and medium bags do not', () => {
+  const line = (serviceName, extra = {}) => mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, serviceName, ...extra }])).services[0];
+  assert.equal(line("Large bag").tier, "titan");
+  assert.equal(line("LARGE BAG (10-12kg)").tier, "titan");
+  assert.equal(line("Medium bag").tier, undefined);
+  assert.equal(line("Small bag").tier, undefined);
+  assert.equal(line("Large bag").note, "Large bag"); // staff see which bag it was
+  assert.equal(line("Enlarged hamper").tier, undefined); // only the whole word "large"
+});
+
+test("weight is only the backup: a medium bag over the threshold is still treated as large, a large bag with no weight is large", () => {
+  const one = (name, weightKg) => mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, serviceName: name, weightKg }])).services[0];
+  assert.equal(one("Large bag", undefined).tier, "titan");
+  assert.equal(one("Medium bag", 10).tier, "titan"); // default threshold is now 10 kg
+  assert.equal(one("Medium bag", 9.5).tier, undefined);
+});

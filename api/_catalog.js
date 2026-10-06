@@ -66,12 +66,12 @@ export const loadExtraRates = async () => {
   return { washCentsPer10: 0, dryCentsPer10: 0 };
 };
 
-/** Loads at or above this many kg go to the larger machines (W5 / D5). Admin-editable; 12 until set. */
+/** Backup rule: loads at or above this many kg go to the larger machines (W5 / D5). Admin-editable; 10 until set. */
 export const loadLargeLoadKg = async () => {
   try {
     const rows = await supabaseRequest("tlp_settings?key=eq.largeLoadKg&select=value&limit=1");
     const v = rows?.[0]?.value;
     if (typeof v === "number" && v > 0) return v;
   } catch {}
-  return 12;
+  return 10;
 };
