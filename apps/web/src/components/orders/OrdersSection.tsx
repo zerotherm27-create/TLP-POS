@@ -5,7 +5,7 @@ import {
   WashingMachine, Wind, X, ChevronRight, RotateCcw, ArrowLeftRight,
 } from "lucide-react";
 import type { JobOrder, Product, Machine, FulfillmentStage, ServicePackage } from "@tlp/shared";
-import { rankWasherPairs, planDryers, extraChargeCents } from "@tlp/shared";
+import { rankWasherPairs, planDryers, extraChargeCents, extraRateCents } from "@tlp/shared";
 import type { ExtraRates } from "@tlp/shared";
 import JobOrderForm, { type NewOrderPayload } from "../overview/JobOrderForm";
 import { formatPeso, formatTime, formatDateTime } from "../../lib/format";
@@ -83,7 +83,7 @@ function OrderCard({
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] text-zinc-400 font-mono">{order.orderNumber}</span>
+            <span className="text-[10px] text-zinc-400 font-mono">{order.orderNumber ?? order.externalOrderId}</span>
             <span className="text-zinc-200 text-[10px]">·</span>
             <span className="text-[10px] text-zinc-400">{formatTime(order.createdAt)}</span>
           </div>
@@ -198,6 +198,9 @@ function DetailPanel({
     line.tier ?? (order.source === "laundrobot" ? "giant" : order.tier) ?? "giant";
   const poolFor = (tier: "giant" | "titan") => (showOtherSize ? machines : machines.filter((m) => machineTier(m) === tier));
   const hasLargeLoad = services.some(({ line }) => loadTier(line) === "titan");
+  // Size used to price an added load (same rule as the server): large only when every washer load is large.
+  const washerLoads = services.filter(({ product }) => product?.machineKind === "washer");
+  const addLoadSize: "giant" | "titan" = washerLoads.length > 0 && washerLoads.every(({ line }) => line.tier === "titan") ? "titan" : "giant";
 
   const unassignedServices = services.filter(({ line, product }) => {
     if (assignedLineIds.has(line.lineId)) return false;
@@ -229,7 +232,7 @@ function DetailPanel({
         <div>
           <div className="text-base font-bold text-zinc-900">{order.customerName}</div>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] font-mono text-zinc-400">{order.orderNumber}</span>
+            <span className="text-[11px] font-mono text-zinc-400">{order.orderNumber ?? order.externalOrderId}</span>
             {order.tier === "titan" && (
               <>
                 <span className="text-zinc-200">·</span>
@@ -358,7 +361,7 @@ function DetailPanel({
                             onClick={() => addLoad(p.id)}
                             className="h-8 px-3 rounded-xl border border-zinc-200 bg-white text-[12px] font-semibold text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa] disabled:opacity-50 transition-colors"
                           >
-                            +{p.durationMinutes} min <span className="font-normal text-zinc-400">· {formatPeso(extraRates && (p.machineKind === "washer" ? extraRates.washCentsPer10 : extraRates.dryCentsPer10) > 0 ? extraChargeCents(extraRates, p.machineKind, p.durationMinutes) : p.priceCents)}</span>
+                            +{p.durationMinutes} min <span className="font-normal text-zinc-400">· {formatPeso(extraRates && extraRateCents(extraRates, p.machineKind, addLoadSize) > 0 ? extraChargeCents(extraRates, p.machineKind, p.durationMinutes, addLoadSize) : p.priceCents)}</span>
                           </button>
                         ))}
                       </div>
@@ -730,7 +733,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
     const matchesSearch =
       !q ||
       o.customerName.toLowerCase().includes(q) ||
-      (o.orderNumber ?? "").toLowerCase().includes(q) ||
+      (o.orderNumber ?? o.externalOrderId ?? "").toLowerCase().includes(q) ||
       (o.contactNumber ?? "").includes(q);
     return matchesFilter && matchesSearch;
   });

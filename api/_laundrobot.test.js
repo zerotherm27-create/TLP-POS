@@ -200,3 +200,12 @@ test("a huge bag count is capped and a nonsense price is clamped", () => {
   const text = mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, quantity: 1, priceCents: "abc" }]));
   assert.equal(text.services[0].priceCents, undefined);
 });
+
+test("an imported order carries the LaundroBot booking number as its order number", async () => {
+  const { buildOrderBundle } = await import("./_laundrobot.js");
+  const mapped = mapLaundrobotOrder({ id: "BKG-000287", customerName: "Maria", services: [{ kind: "washer", durationMinutes: 35, quantity: 1, priceCents: 33000 }] });
+  const { jobOrder } = buildOrderBundle(mapped);
+  assert.equal(jobOrder.orderNumber, "BKG-000287");
+  assert.equal(jobOrder.externalOrderId, "BKG-000287");
+  assert.equal(jobOrder.paymentStatus, "paid");
+});

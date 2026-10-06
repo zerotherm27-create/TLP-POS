@@ -129,6 +129,7 @@ export const buildOrderBundle = (mapped) => {
     id: crypto.randomUUID(),
     branchId: process.env.BRANCH_ID ?? "b1",
     source: "laundrobot",
+    orderNumber: mapped.externalOrderId, // the LaundroBot booking number (e.g. BKG-000287), so the order can be traced back
     externalOrderId: mapped.externalOrderId,
     externalOrderUrl: mapped.externalOrderUrl,
     customerName: mapped.customerName,

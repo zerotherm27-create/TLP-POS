@@ -73,7 +73,7 @@ export default function JobQueue({ orders, products }: Props) {
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] text-zinc-400 font-mono">
-                      {order.orderNumber}
+                      {order.orderNumber ?? order.externalOrderId}
                     </span>
                     <span className="text-[10px] text-zinc-300">·</span>
                     <span className="text-[10px] text-zinc-400">

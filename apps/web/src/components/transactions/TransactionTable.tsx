@@ -50,7 +50,7 @@ export default function TransactionTable({ orders, products }: Props) {
       .filter((o) => o.paymentStatus === "paid" || o.paymentStatus === "refunded" || o.paymentStatus === "voided")
       .map((o) => ({
         id: o.id,
-        orderNumber: o.orderNumber,
+        orderNumber: o.orderNumber ?? o.externalOrderId,
         customerName: o.customerName,
         paidAt: o.createdAt,
         method: (o.paymentMethod ?? (o.source === "laundrobot" ? "online" : "manual")) as MethodKey,

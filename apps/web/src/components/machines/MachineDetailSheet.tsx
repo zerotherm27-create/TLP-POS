@@ -128,7 +128,7 @@ export default function MachineDetailSheet({ machine, order, products, threshold
             {running && (
               <>
                 <Row label="Customer" value={customer ?? "—"} />
-                {order && <Row label="Order" value={order.orderNumber ?? order.id} />}
+                {order && <Row label="Order" value={order.orderNumber ?? order.externalOrderId ?? order.id} />}
                 {order?.contactNumber && <Row label="Contact" value={order.contactNumber} />}
                 {product && <Row label="Service" value={product.name} />}
                 <Row label="Started" value={startMs !== null ? timeFmt(new Date(startMs)) : "Not started"} />

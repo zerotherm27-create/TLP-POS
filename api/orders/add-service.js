@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { requireUser } from "../_auth.js";
-import { loadProducts } from "../_catalog.js";
+import { extraChargeCents, extraRateCents, loadExtraRates, loadProducts } from "../_catalog.js";
 import { changeOrder, ensurePost, readJson, sendJson, sendServerError } from "../_supabase.js";
 
 const require = createRequire(import.meta.url);
@@ -26,6 +26,7 @@ export default async function handler(req, res) {
       return;
     }
 
+    const rates = await loadExtraRates();
     const safeId = encodeURIComponent(orderId);
     const saved = await changeOrder(safeId, (order) => {
       if (order.status === "completed" || order.status === "voided") return "This order is closed.";
@@ -35,9 +36,16 @@ export default async function handler(req, res) {
       const washerLines = order.services.filter((l) => products.find((p) => p.id === l.productId)?.machineKind === "washer");
       const inheritLarge = product.machineKind === "dryer" && washerLines.length > 0 && washerLines.every((l) => l.tier === "titan");
 
+      // Same price the screen shows: the admin's extra-time rate per 10 minutes for this machine size,
+      // or the program's own price when no rate is set.
+      const size = washerLines.length > 0 && washerLines.every((l) => l.tier === "titan") ? "titan" : "giant";
+      const priceCents = extraRateCents(rates, product.machineKind, size) > 0
+        ? extraChargeCents(rates, product.machineKind, product.durationMinutes, size)
+        : product.priceCents;
+
       order.services = [
         ...order.services,
-        { lineId: crypto.randomUUID(), productId: product.id, quantity: 1, priceCents: product.priceCents, ...(inheritLarge ? { tier: "titan" } : {}) },
+        { lineId: crypto.randomUUID(), productId: product.id, quantity: 1, priceCents, ...(inheritLarge ? { tier: "titan" } : {}) },
       ];
     });
     if (saved.status === "missing") {

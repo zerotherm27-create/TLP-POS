@@ -1,8 +1,7 @@
+// No cross-site (CORS) headers on purpose: the app calls /api from its own domain, and LaundroBot calls the import
+// route server to server, so no other website needs browser access to these routes.
 const jsonHeaders = {
-  "content-type": "application/json",
-  "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET,POST,OPTIONS",
-  "access-control-allow-headers": "authorization,content-type"
+  "content-type": "application/json"
 };
 
 export const sendJson = (res, statusCode, body) => {
