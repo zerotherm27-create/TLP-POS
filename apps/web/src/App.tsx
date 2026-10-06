@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "./components/layout/Sidebar";
 import BottomNav, { type Section } from "./components/layout/BottomNav";
@@ -15,11 +15,11 @@ import { useOrders } from "./hooks/useOrders";
 import { usePackages } from "./hooks/usePackages";
 import { useSettings } from "./hooks/useSettings";
 import { useMachines } from "./hooks/useMachines";
+import { ordersToSales, isToday } from "./lib/sales";
 import type { JobOrder } from "@tlp/shared";
 import type { NewOrderPayload } from "./components/overview/JobOrderForm";
 import {
   mockJobOrders,
-  mockSales,
 } from "./lib/mockData";
 
 const spring = { type: "spring" as const, stiffness: 320, damping: 30 };
@@ -36,6 +36,7 @@ export default function App() {
   useEffect(() => { setDraftThreshold(String(tubCleanThreshold)); }, [tubCleanThreshold]);
   const [confirmCleanId, setConfirmCleanId] = useState<string | null>(null);
   const { orders, updateOrder, addOrder } = useOrders("b1", mockJobOrders);
+  const todaysSales = useMemo(() => ordersToSales(orders, products).filter((s) => isToday(s.paidAt)), [orders, products]);
 
   // Server calls run one after another so e.g. "restart" (release, then assign) can't race itself.
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -196,7 +197,7 @@ export default function App() {
                 <OverviewSection
                   machines={machines}
                   orders={orders}
-                  sales={mockSales}
+                  sales={todaysSales}
                   products={products}
                   packages={packages}
                   isAdmin={isAdmin}
@@ -234,11 +235,7 @@ export default function App() {
                 />
               )}
               {section === "transactions" && (
-                <TransactionTable
-                  sales={mockSales}
-                  orders={mockJobOrders}
-                  products={products}
-                />
+                <TransactionTable orders={orders} products={products} />
               )}
               {section === "admin" && isAdmin && (
                 <div className="flex flex-col gap-5">
