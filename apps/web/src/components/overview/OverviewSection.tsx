@@ -187,22 +187,22 @@ function MiniOnline({ machine }: { machine: Machine }) {
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 280, damping: 28 }}
-      className="rounded-2xl bg-white border border-zinc-100 flex flex-col overflow-hidden h-full"
-      style={{ boxShadow: "0 2px 8px -4px rgba(0,0,0,0.06)" }}
+      className="rounded-2xl border flex flex-col overflow-hidden h-full"
+      style={{ background: "linear-gradient(165deg, #f2fafc 0%, #e2f3f7 100%)", borderColor: "#c9e7ee", boxShadow: "0 2px 8px -4px rgba(0,110,130,0.18)" }}
     >
       <div className="flex items-center justify-between px-2 pt-2 pb-0 sm:px-2.5 sm:pt-2.5">
-        <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400 tracking-widest uppercase">{machine.publicCode}</span>
+        <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 tracking-widest uppercase">{machine.publicCode}</span>
         {machine.tier && <TierBadgeLight tier={machine.tier} />}
       </div>
       <div className="flex-1 flex items-center justify-center py-2 sm:py-3">
-        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center" style={{ background: "#e0f6fa" }}>
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center" style={{ background: "#ffffff", boxShadow: "0 1px 3px rgba(0,110,130,0.15)" }}>
           {machine.kind === "washer"
             ? <WashingMachine size={16} strokeWidth={1.5} style={{ color: "#009eb5" }} />
             : <Wind size={16} strokeWidth={1.5} style={{ color: "#009eb5" }} />}
         </div>
       </div>
       <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">
-        <div className="h-px bg-zinc-100 mb-1.5 sm:mb-2" />
+        <div className="h-px mb-1.5 sm:mb-2" style={{ background: "#c9e7ee" }} />
         <div className="text-[8px] sm:text-[10px] font-semibold leading-tight break-words line-clamp-2 sm:line-clamp-1 text-zinc-700">{machine.name}</div>
         <div className="flex items-center gap-1 mt-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
