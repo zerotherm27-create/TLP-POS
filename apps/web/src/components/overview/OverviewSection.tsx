@@ -102,9 +102,8 @@ function MiniRunning({ machine }: { machine: Machine }) {
       initial={{ opacity: 0, scale: 0.94 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: "spring", stiffness: 300, damping: 26 }}
-      className="relative rounded-2xl overflow-hidden flex flex-col"
+      className="relative rounded-2xl overflow-hidden flex flex-col h-full"
       style={{
-        aspectRatio: "3/4",
         background: "linear-gradient(145deg, #006a7e 0%, #009eb5 55%, #00bcd4 100%)",
         boxShadow: "0 6px 18px -6px rgba(0,158,181,0.5), 0 1px 4px -1px rgba(0,0,0,0.12)",
       }}
@@ -183,8 +182,8 @@ function MiniOnline({ machine }: { machine: Machine }) {
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 280, damping: 28 }}
-      className="rounded-2xl bg-white border border-zinc-100 flex flex-col overflow-hidden"
-      style={{ aspectRatio: "3/4", boxShadow: "0 2px 8px -4px rgba(0,0,0,0.06)" }}
+      className="rounded-2xl bg-white border border-zinc-100 flex flex-col overflow-hidden h-full"
+      style={{ boxShadow: "0 2px 8px -4px rgba(0,0,0,0.06)" }}
     >
       <div className="flex items-center justify-between px-2.5 pt-2.5 pb-0">
         <span className="text-[10px] font-bold text-zinc-400 tracking-widest uppercase">{machine.publicCode}</span>
@@ -219,8 +218,7 @@ function MiniOffline({ machine }: { machine: Machine }) {
       layout
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 flex flex-col overflow-hidden"
-      style={{ aspectRatio: "3/4" }}
+      className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 flex flex-col overflow-hidden h-full"
     >
       <div className="flex items-center justify-between px-2.5 pt-2.5 pb-0">
         <span className="text-[10px] font-bold text-zinc-300 tracking-widest uppercase">{machine.publicCode}</span>
