@@ -75,3 +75,12 @@ export const loadLargeLoadKg = async () => {
   } catch {}
   return 10;
 };
+
+/** Your packages (id, name, services), used to turn recognised LaundroBot orders into package loads. */
+export const loadPackages = async () => {
+  try {
+    return (await supabaseRequest("tlp_packages?select=id,name,services&branch_id=eq.b1&limit=200")) ?? [];
+  } catch {
+    return [];
+  }
+};

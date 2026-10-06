@@ -5,7 +5,7 @@ import {
   persistOrderBundle
 } from "../_laundrobot.js";
 import { requireUser } from "../_auth.js";
-import { loadLargeLoadKg } from "../_catalog.js";
+import { loadLargeLoadKg, loadPackages } from "../_catalog.js";
 import { sendJson, supabaseRequest } from "../_supabase.js";
 
 const existingLaundrobotOrderIds = async () => {
@@ -33,13 +33,14 @@ export default async function handler(req, res) {
     }
 
     const largeKg = await loadLargeLoadKg();
+    const packages = await loadPackages();
     const rawOrders = await fetchLaundrobotOrders();
     const existingIds = await existingLaundrobotOrderIds();
     const imported = [];
     const skipped = [];
 
     for (const rawOrder of rawOrders) {
-      const mapped = mapLaundrobotOrder(rawOrder, { largeKg });
+      const mapped = mapLaundrobotOrder(rawOrder, { largeKg, packages });
       if (!mapped) {
         // Order has no machine-wash/dry services (handwash, dryclean, etc.) — skip
         skipped.push(String(rawOrder.id));

@@ -102,3 +102,51 @@ test("the size can be in any option: Titan or Large, or a stated max of 10 kg or
   assert.equal(one(["Colored", "Standard ( 3 Days )"]).tier, undefined);
   assert.equal(one([]).tier, undefined);
 });
+
+const FULL_CARE = { id: "pkg-full", name: "FULL - CARE EXPRESS", services: ["p2", "p5"] }; // 35 min wash + 30 min dry
+
+test("order 1 (FULL SERVICE - CLOTHES, GIANT max 8kg, quantity 2, PHP 580) becomes 2 x [wash 35 + dry 30] on regular machines", () => {
+  const m = mapLaundrobotOrder(
+    raw([{
+      quantity: 2, priceCents: 58000, // no machine tags needed: the service name is recognised
+      serviceName: "FULL SERVICE - CLOTHES",
+      options: ["CLOTHES MACHINE WASH : CLOTHES FULL SERVICE GIANT (max 8kg / load)"],
+    }]),
+    { packages: [FULL_CARE] }
+  );
+  assert.deepEqual(m.services.map((l) => l.productId), ["p2", "p5", "p2", "p5"]); // wash, dry, wash, dry
+  assert.deepEqual(m.services.map((l) => l.tier), [undefined, undefined, undefined, undefined]);
+  assert.equal(m.services.reduce((t, l) => t + l.priceCents, 0), 58000); // the whole PHP 580 is accounted for
+  assert.deepEqual(m.services.slice(0, 2).map((l) => l.priceCents), [14500, 14500]); // PHP 290 per load, split wash/dry
+  assert.equal(m.packageName, "FULL - CARE EXPRESS");
+  assert.equal(m.tier, undefined);
+});
+
+test("order 2 (Clothes - Machine Wash, Large Bag max 12kg, quantity 2, PHP 1,100) becomes 2 x [wash + dry] on the LARGE machines", () => {
+  const m = mapLaundrobotOrder(
+    raw([{
+      quantity: 2, priceCents: 110000,
+      serviceName: "Clothes - Machine Wash",
+      size: "Large Bag (max 12kg/bag)",
+      options: ["Colored", "Large Bag (max 12kg/bag)", "Standard ( 3 Days )"],
+    }]),
+    { packages: [FULL_CARE] }
+  );
+  assert.equal(m.services.length, 4);
+  assert.deepEqual(m.services.map((l) => l.tier), ["titan", "titan", "titan", "titan"]); // dryer lines are large too, so they pair with W5 -> D5
+  assert.equal(m.services.reduce((t, l) => t + l.priceCents, 0), 110000);
+  assert.equal(m.services[0].note, "Large Bag (max 12kg/bag)");
+  assert.equal(m.packageName, "FULL - CARE EXPRESS");
+  assert.equal(m.tier, "titan");
+});
+
+test("if the package isn't found, a recognised order is not invented; tagged services still import the old way", () => {
+  const untagged = mapLaundrobotOrder(raw([{ quantity: 1, serviceName: "FULL SERVICE - CLOTHES" }]), { packages: [] });
+  assert.equal(untagged, null); // nothing to assign -> skipped
+  const tagged = mapLaundrobotOrder(raw([{ kind: "washer", durationMinutes: 35, quantity: 1, serviceName: "Handwash" }]), { packages: [] });
+  assert.equal(tagged.services.length, 1);
+});
+
+test("services that are not machine services (handwash, dry cleaning) are skipped", () => {
+  assert.equal(mapLaundrobotOrder(raw([{ quantity: 1, serviceName: "Dry cleaning - Suit", options: ["Dark"] }]), { packages: [FULL_CARE] }), null);
+});

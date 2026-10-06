@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { buildOrderBundle, mapLaundrobotOrder, persistOrderBundle } from "../_laundrobot.js";
-import { loadLargeLoadKg } from "../_catalog.js";
+import { loadLargeLoadKg, loadPackages } from "../_catalog.js";
 import { ensurePost, readJson, sendJson, supabaseRequest } from "../_supabase.js";
 
 const _require = createRequire(import.meta.url);
@@ -44,7 +44,7 @@ export default async function handler(req, res) {
     }
 
     const rawOrder = { ...body, id: String(body.id) };
-    const mapped = mapLaundrobotOrder(rawOrder, { largeKg: await loadLargeLoadKg() });
+    const mapped = mapLaundrobotOrder(rawOrder, { largeKg: await loadLargeLoadKg(), packages: await loadPackages() });
     if (!mapped) {
       // Order has no machine-wash/dry services — nothing to do in TLP POS
       sendJson(res, 200, { ok: true, skipped: true, reason: "no machine services" });
