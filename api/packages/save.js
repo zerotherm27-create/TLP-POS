@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     if (!ensurePost(req, res)) return;
     if (!(await requireUser(req, res, { adminOnly: true }))) return;
 
-    const { id, name, description, services, priceCents } = await readJson(req);
+    const { id, name, description, services, priceCents, titanPriceCents } = await readJson(req);
     const cleanName = typeof name === "string" ? name.trim() : "";
     const cleanDesc = typeof description === "string" ? description.trim().slice(0, 80) : "";
 
@@ -17,6 +17,11 @@ export default async function handler(req, res) {
       return;
     }
     const price = priceCents === undefined ? 0 : Number(priceCents);
+    const titan = titanPriceCents === undefined ? 0 : Number(titanPriceCents);
+    if (!Number.isInteger(titan) || titan < 0 || titan > 10_000_000) {
+      sendJson(res, 400, { ok: false, message: "That large-machine price isn't valid." });
+      return;
+    }
     if (!Number.isInteger(price) || price < 0 || price > 10_000_000) {
       sendJson(res, 400, { ok: false, message: "That price isn't valid." });
       return;
@@ -43,6 +48,7 @@ export default async function handler(req, res) {
         description: cleanDesc || null,
         services,
         price_cents: price,
+        titan_price_cents: titan,
         position,
       }),
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" },

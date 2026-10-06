@@ -143,6 +143,7 @@ function DetailPanel({
   extraRates?: ExtraRates;
   tubCleanThreshold?: number;
 }) {
+  const [showOtherSize, setShowOtherSize] = useState(false);
   const [extraFor, setExtraFor] = useState<string | null>(null);
   const [extraBusy, setExtraBusy] = useState(false);
   const addExtra = async (lineId: string, productId: string) => {
@@ -177,6 +178,13 @@ function DetailPanel({
     sum + (line.priceCents ?? (product?.priceCents ?? 0) * line.quantity), 0);
 
   const assignedLineIds = new Set(order.assignments.map((a) => a.lineId));
+
+  // An order is sold for one machine size (regular, or the larger W5 + D5). Offer only that size unless overridden.
+  const orderTier = order.tier === "titan" ? "titan" : "giant";
+  const machineTier = (m: Machine) => (m.tier === "titan" ? "titan" : "giant");
+  const sizeMachines = machines.filter((m) => machineTier(m) === orderTier);
+  const otherSizeLabel = orderTier === "titan" ? "regular" : "large";
+  const poolMachines = showOtherSize ? machines : sizeMachines;
 
   // All washers done when none of their machines is still running
   const washerAssignments = order.assignments.filter((a) => {
@@ -219,6 +227,12 @@ function DetailPanel({
           <div className="text-base font-bold text-zinc-900">{order.customerName}</div>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[11px] font-mono text-zinc-400">{order.orderNumber}</span>
+            {order.tier === "titan" && (
+              <>
+                <span className="text-zinc-200">·</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">Large</span>
+              </>
+            )}
             {order.packageName && (
               <>
                 <span className="text-zinc-200">·</span>
@@ -537,6 +551,20 @@ function DetailPanel({
         {canAssign && (
           <div>
             <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Assign Machine</div>
+            {orderTier === "titan" || sizeMachines.length < machines.length ? (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2.5 text-[11px] text-zinc-500">
+                <span>
+                  {showOtherSize
+                    ? "Showing all machines."
+                    : orderTier === "titan"
+                      ? `Large order: showing the large machines (${sizeMachines.filter((m) => m.kind === "washer").map((m) => m.publicCode).join(", ")} + ${sizeMachines.filter((m) => m.kind === "dryer").map((m) => m.publicCode).join(", ")}).`
+                      : "Regular order: showing the regular machines."}
+                </span>
+                <button onClick={() => setShowOtherSize((v) => !v)} className="font-semibold text-[#007a8c] hover:underline">
+                  {showOtherSize ? "Only this size" : `Show ${otherSizeLabel} machines too`}
+                </button>
+              </div>
+            ) : null}
             <div className="flex flex-col gap-3">
               {unassignedServices.map(({ line, product }) => {
                 if (!product) return null;
@@ -545,7 +573,7 @@ function DetailPanel({
                 let available: Chip[];
                 let hint: string | null = null;
                 if (product.machineKind === "washer") {
-                  const pairs = rankWasherPairs(machines, tubCleanThreshold);
+                  const pairs = rankWasherPairs(poolMachines, tubCleanThreshold);
                   available = pairs.map((p) => ({
                     machine: p.washer,
                     suggested: p.suggested,
@@ -563,7 +591,7 @@ function DetailPanel({
                   const orderWashers = washerAssignments
                     .map((a) => machines.find((m) => m.id === a.machineId))
                     .filter((m): m is Machine => !!m);
-                  const plan = planDryers(machines, orderWashers, tubCleanThreshold);
+                  const plan = planDryers(poolMachines, orderWashers, tubCleanThreshold);
                   available = plan.choices.map((c) => ({ machine: c.machine, suggested: c.suggested, sub: c.pairOf ? `pairs with ${c.pairOf}` : undefined }));
                   const pick = plan.choices.find((c) => c.suggested && c.pairOf);
                   if (pick) hint = `Suggested: ${pick.machine.publicCode} (matches ${pick.pairOf})`;

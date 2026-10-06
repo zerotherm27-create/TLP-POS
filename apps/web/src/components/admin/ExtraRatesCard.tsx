@@ -15,9 +15,16 @@ const asText = (cents: number) => (cents ? String(cents / 100) : "");
 export default function ExtraRatesCard({ rates, onSave }: Props) {
   const [wash, setWash] = useState(asText(rates.washCentsPer10));
   const [dry, setDry] = useState(asText(rates.dryCentsPer10));
-  useEffect(() => { setWash(asText(rates.washCentsPer10)); setDry(asText(rates.dryCentsPer10)); }, [rates.washCentsPer10, rates.dryCentsPer10]);
+  const [tWash, setTWash] = useState(asText(rates.titanWashCentsPer10 ?? 0));
+  const [tDry, setTDry] = useState(asText(rates.titanDryCentsPer10 ?? 0));
+  useEffect(() => {
+    setWash(asText(rates.washCentsPer10)); setDry(asText(rates.dryCentsPer10));
+    setTWash(asText(rates.titanWashCentsPer10 ?? 0)); setTDry(asText(rates.titanDryCentsPer10 ?? 0));
+  }, [rates.washCentsPer10, rates.dryCentsPer10, rates.titanWashCentsPer10, rates.titanDryCentsPer10]);
 
-  const changed = toCents(wash) !== rates.washCentsPer10 || toCents(dry) !== rates.dryCentsPer10;
+  const changed =
+    toCents(wash) !== rates.washCentsPer10 || toCents(dry) !== rates.dryCentsPer10 ||
+    toCents(tWash) !== (rates.titanWashCentsPer10 ?? 0) || toCents(tDry) !== (rates.titanDryCentsPer10 ?? 0);
   const notSet = rates.washCentsPer10 === 0 && rates.dryCentsPer10 === 0;
 
   const field = (label: string, value: string, set: (v: string) => void) => (
@@ -49,9 +56,12 @@ export default function ExtraRatesCard({ rates, onSave }: Props) {
       <div className="flex flex-wrap items-end gap-3">
         {field("Extra wash · per 10 min", wash, setWash)}
         {field("Extra dry · per 10 min", dry, setDry)}
+        <div className="basis-full text-[11px] font-semibold text-zinc-400 uppercase tracking-wider -mb-1">Large machines (W5 + D5) · leave blank to use the same price</div>
+        {field("Large wash · per 10 min", tWash, setTWash)}
+        {field("Large dry · per 10 min", tDry, setTDry)}
         <button
           disabled={!changed}
-          onClick={() => onSave({ washCentsPer10: toCents(wash), dryCentsPer10: toCents(dry) })}
+          onClick={() => onSave({ washCentsPer10: toCents(wash), dryCentsPer10: toCents(dry), titanWashCentsPer10: toCents(tWash), titanDryCentsPer10: toCents(tDry) })}
           className="h-10 px-5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 active:scale-[0.98] transition-all"
           style={{ background: "#009eb5" }}
         >Save</button>

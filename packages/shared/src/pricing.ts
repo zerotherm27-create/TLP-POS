@@ -4,13 +4,26 @@ import type { Product } from "./index.js";
 export interface ExtraRates {
   washCentsPer10: number;
   dryCentsPer10: number;
+  /** Larger (titan) machines. Optional: when 0 or missing, the regular rate is used. */
+  titanWashCentsPer10?: number;
+  titanDryCentsPer10?: number;
 }
 
 export const NO_EXTRA_RATES: ExtraRates = { washCentsPer10: 0, dryCentsPer10: 0 };
 
 /** Price of extra minutes on a washer or dryer. */
-export const extraChargeCents = (rates: ExtraRates, kind: "washer" | "dryer", minutes: number): number =>
-  Math.round(((kind === "washer" ? rates.washCentsPer10 : rates.dryCentsPer10) * Math.max(0, minutes)) / 10);
+export const extraRateCents = (rates: ExtraRates, kind: "washer" | "dryer", tier: "giant" | "titan" = "giant"): number => {
+  const regular = kind === "washer" ? rates.washCentsPer10 : rates.dryCentsPer10;
+  const large = kind === "washer" ? rates.titanWashCentsPer10 : rates.titanDryCentsPer10;
+  return tier === "titan" && large ? large : regular;
+};
+
+export const extraChargeCents = (rates: ExtraRates, kind: "washer" | "dryer", minutes: number, tier: "giant" | "titan" = "giant"): number =>
+  Math.round((extraRateCents(rates, kind, tier) * Math.max(0, minutes)) / 10);
+
+/** Package price for a machine size, or 0 when that size isn't offered for the package. */
+export const packagePriceFor = (pkg: { priceCents?: number; titanPriceCents?: number }, tier: "giant" | "titan" = "giant"): number =>
+  (tier === "titan" ? pkg.titanPriceCents : pkg.priceCents) ?? 0;
 
 /**
  * Split a package price across its programs so the loads add up to exactly the package price.

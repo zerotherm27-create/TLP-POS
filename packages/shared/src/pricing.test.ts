@@ -13,3 +13,16 @@ test("shared copy matches the server: extra minutes rate", () => {
   assert.equal(extraChargeCents(rates, "washer", 30), 6000);
   assert.equal(extraChargeCents(rates, "dryer", 20), 3000);
 });
+
+import { packagePriceFor } from "./pricing.js";
+
+test("shared copy: larger-machine extra rate and package price by size", () => {
+  const rates = { washCentsPer10: 2000, dryCentsPer10: 1500, titanWashCentsPer10: 3000 };
+  assert.equal(extraChargeCents(rates, "washer", 20, "titan"), 6000);
+  assert.equal(extraChargeCents(rates, "dryer", 10, "titan"), 1500);
+  assert.equal(extraChargeCents(rates, "washer", 20), 4000);
+  const pkg = { priceCents: 33000, titanPriceCents: 45000 };
+  assert.equal(packagePriceFor(pkg), 33000);
+  assert.equal(packagePriceFor(pkg, "titan"), 45000);
+  assert.equal(packagePriceFor({ priceCents: 33000 }, "titan"), 0); // large size not offered
+});

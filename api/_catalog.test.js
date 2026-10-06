@@ -61,3 +61,11 @@ test("extra minutes are charged per 10 minutes at the admin rate", () => {
   assert.equal(extraChargeCents(rates, "dryer", 0), 0);
   assert.equal(extraChargeCents(undefined, "dryer", 10), 0); // not set yet
 });
+
+test("larger (titan) machines can have their own extra-time rate, falling back to the regular one", () => {
+  const rates = { washCentsPer10: 2000, dryCentsPer10: 1500, titanWashCentsPer10: 3000, titanDryCentsPer10: 0 };
+  assert.equal(extraChargeCents(rates, "washer", 20, "giant"), 4000);
+  assert.equal(extraChargeCents(rates, "washer", 20, "titan"), 6000);
+  assert.equal(extraChargeCents(rates, "dryer", 10, "titan"), 1500); // titan dry rate not set -> regular rate
+  assert.equal(extraChargeCents({ washCentsPer10: 2000, dryCentsPer10: 1500 }, "washer", 10, "titan"), 2000);
+});

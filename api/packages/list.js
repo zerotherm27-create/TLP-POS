@@ -19,6 +19,7 @@ export default async function handler(req, res) {
       name: r.name,
       description: r.description ?? undefined,
       priceCents: r.price_cents ?? 0,
+      titanPriceCents: r.titan_price_cents ?? 0,
       services: r.services ?? [],
       createdAt: r.created_at,
     }));

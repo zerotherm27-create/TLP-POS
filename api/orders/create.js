@@ -38,6 +38,8 @@ export default async function handler(req, res) {
       return;
     }
     const products = await loadProducts();
+    // Machine size the order is sold for. Larger (titan) machines have their own package price.
+    const tier = body.tier === "titan" ? "titan" : "giant";
 
     // Everything is sold as a package: its price is what the customer pays (extras are added on top).
     let pkg = null;
@@ -53,10 +55,17 @@ export default async function handler(req, res) {
         sendJson(res, 400, { ok: false, message: "That package no longer exists." });
         return;
       }
-      if (!(pkg.price_cents > 0)) {
-        sendJson(res, 400, { ok: false, message: `"${pkg.name}" has no price yet. Set it in Admin → Packages.` });
+      const packagePrice = tier === "titan" ? pkg.titan_price_cents : pkg.price_cents;
+      if (!(packagePrice > 0)) {
+        sendJson(res, 400, {
+          ok: false,
+          message: tier === "titan"
+            ? `"${pkg.name}" has no price for the larger machines yet. Set it in Admin → Packages.`
+            : `"${pkg.name}" has no price yet. Set it in Admin → Packages.`,
+        });
         return;
       }
+      pkg.sale_price_cents = packagePrice;
     }
 
     const extras = body.extras && typeof body.extras === "object" ? body.extras : {};
@@ -70,7 +79,7 @@ export default async function handler(req, res) {
 
     const rates = await loadExtraRates();
     const shares = pkg
-      ? allocatePackagePrice(pkg.price_cents, picked.map((sel) => products.find((p) => p.id === sel.productId) ?? { priceCents: 0 }))
+      ? allocatePackagePrice(pkg.sale_price_cents, picked.map((sel) => products.find((p) => p.id === sel.productId) ?? { priceCents: 0 }))
       : [];
     const services = [];
     const notices = [];
@@ -89,7 +98,7 @@ export default async function handler(req, res) {
       // An extra wash is merged in BEFORE any machine is assigned, so the machine runs the combined program.
       const resolved = resolveWash(products, product.id, extra);
       if (resolved.notice) notices.push(resolved.notice);
-      const extraCents = extraChargeCents(rates, "washer", extra);
+      const extraCents = extraChargeCents(rates, "washer", extra, tier);
       for (let i = 0; i < qty; i += 1) {
         resolved.lines.forEach((line, lineIndex) => {
           let priceCents = line.priceCents;
@@ -123,6 +132,7 @@ export default async function handler(req, res) {
       contactNumber: contactNumber || undefined,
       notes: notes || undefined,
       services,
+      ...(tier === "titan" ? { tier } : {}),
       ...(pkg ? { packageId: pkg.id, packageName: pkg.name } : {}),
       assignments: [],
       status: "queued",

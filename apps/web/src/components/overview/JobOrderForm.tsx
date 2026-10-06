@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, CreditCard, Banknote, Smartphone, Check } from "lucide-react";
 import type { Product, ServicePackage, PaymentMethod, ExtraRates } from "@tlp/shared";
-import { resolveWash, EXTRA_WASH_STEPS, extraChargeCents, NO_EXTRA_RATES } from "@tlp/shared";
+import { resolveWash, EXTRA_WASH_STEPS, extraChargeCents, packagePriceFor, NO_EXTRA_RATES } from "@tlp/shared";
 import { formatPeso } from "../../lib/format";
 
 interface ServiceSelection {
@@ -20,6 +20,8 @@ export interface NewOrderPayload {
   paymentMethod: PaymentMethod;
   /** Sold as a package: the package price is what the customer pays. */
   packageId?: string;
+  /** Machine size: "titan" = the larger W5 + D5 pair (own price). Absent = regular machines. */
+  tier?: "titan";
   /** Extra wash minutes per program, e.g. { "p2": 10 }. */
   extras?: Record<string, number>;
 }
@@ -44,6 +46,7 @@ export default function JobOrderForm({ products, packages, extraRates = NO_EXTRA
   const [notes, setNotes] = useState("");
   const [selections, setSelections] = useState<ServiceSelection[]>([]);
   const [pkgId, setPkgId] = useState<string | null>(null);
+  const [tier, setTier] = useState<"giant" | "titan">("giant");
   const [showCustom, setShowCustom] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [saving, setSaving] = useState(false);
@@ -54,12 +57,13 @@ export default function JobOrderForm({ products, packages, extraRates = NO_EXTRA
     setSaving(true);
     setError(null);
     try {
-      await onCheckout({ customerName: customerName.trim(), contactNumber: contactNumber.trim(), notes: notes.trim(), services: selections, paymentMethod, ...(pkgId ? { packageId: pkgId, extras: Object.fromEntries(selections.filter((x) => (x.extraMinutes ?? 0) > 0).map((x) => [x.productId, x.extraMinutes as number])) } : {}) });
+      await onCheckout({ customerName: customerName.trim(), contactNumber: contactNumber.trim(), notes: notes.trim(), services: selections, paymentMethod, ...(tier === "titan" ? { tier: "titan" as const } : {}), ...(pkgId ? { packageId: pkgId, extras: Object.fromEntries(selections.filter((x) => (x.extraMinutes ?? 0) > 0).map((x) => [x.productId, x.extraMinutes as number])) } : {}) });
       setCustomerName("");
       setContactNumber("");
       setNotes("");
       setSelections([]);
       setPkgId(null);
+      setTier("giant");
       setShowCustom(false);
       setPaymentMethod("cash");
     } catch (e) {
@@ -85,21 +89,28 @@ export default function JobOrderForm({ products, packages, extraRates = NO_EXTRA
 
   const applyPackage = (pkg: ServicePackage) => {
     if (pkgId === pkg.id) { setPkgId(null); setSelections([]); return; } // tap again to deselect
-    if (!pkg.priceCents) return; // can't sell a package that has no price yet
+    if (!packagePriceFor(pkg, tier)) return; // can't sell a package that has no price for this size
     setPkgId(pkg.id);
     setSelections(pkg.services.map((id) => ({ productId: id, quantity: 1 })));
   };
+
+  // Switching machine size: a package with no price for the new size is dropped.
+  const changeTier = (next: "giant" | "titan") => {
+    setTier(next);
+    if (selectedPkg && !packagePriceFor(selectedPkg, next)) { setPkgId(null); setSelections([]); }
+  };
+  const offersLarge = packages.some((p) => (p.titanPriceCents ?? 0) > 0);
 
   const setExtra = (productId: string, extraMinutes: number) =>
     setSelections((prev) => prev.map((sel) => (sel.productId === productId ? { ...sel, extraMinutes } : sel)));
 
   // Package orders cost the package price plus any extra wash minutes; custom orders add up the programs.
   const total = selectedPkg
-    ? (selectedPkg.priceCents ?? 0) +
+    ? packagePriceFor(selectedPkg, tier) +
       selections.reduce((sum, sel) => {
         const extra = sel.extraMinutes ?? 0;
         const r = resolveWash(products, sel.productId, extra);
-        return sum + (extra > 0 && (r.merged || r.lines.length > 1) ? extraChargeCents(extraRates, "washer", extra) : 0);
+        return sum + (extra > 0 && (r.merged || r.lines.length > 1) ? extraChargeCents(extraRates, "washer", extra, tier) : 0);
       }, 0)
     : selections.reduce((sum, sel) => {
         const resolved = resolveWash(products, sel.productId, sel.extraMinutes ?? 0);
@@ -155,6 +166,23 @@ export default function JobOrderForm({ products, packages, extraRates = NO_EXTRA
         />
       </div>
 
+      {/* Machine size: the larger titan pair (W5 + D5) has its own price */}
+      {offersLarge && (
+        <div className="flex flex-col gap-2">
+          <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Machine size</label>
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-zinc-100">
+            {([["giant", "Regular"], ["titan", "Large (W5 + D5)"]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => changeTier(key)}
+                aria-pressed={tier === key}
+                className={`h-11 rounded-xl text-sm font-semibold transition-all ${tier === key ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"}`}
+              >{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Packages: everything is sold as a package */}
       <div className="flex flex-col gap-2">
         <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Package</label>
@@ -164,7 +192,8 @@ export default function JobOrderForm({ products, packages, extraRates = NO_EXTRA
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {packages.map((pkg) => {
               const active = pkgId === pkg.id;
-              const noPrice = !pkg.priceCents;
+              const price = packagePriceFor(pkg, tier);
+              const noPrice = !price;
               return (
                 <button
                   key={pkg.id}
@@ -187,9 +216,9 @@ export default function JobOrderForm({ products, packages, extraRates = NO_EXTRA
                     {pkg.description && (
                       <span className={`block text-[11px] font-normal leading-snug mt-1 ${active ? "text-white/80" : noPrice ? "text-zinc-400" : "text-[#007a8c]"}`}>{pkg.description}</span>
                     )}
-                    {noPrice && <span className="block text-[11px] font-semibold text-amber-600 mt-1">No price set — add it in Admin → Packages</span>}
+                    {noPrice && <span className="block text-[11px] font-semibold text-amber-600 mt-1">{tier === "titan" ? "Not offered for large machines" : "No price set — add it in Admin → Packages"}</span>}
                   </span>
-                  {!noPrice && <span className="text-base font-bold tabular-nums shrink-0">{formatPeso(pkg.priceCents ?? 0)}</span>}
+                  {!noPrice && <span className="text-base font-bold tabular-nums shrink-0">{formatPeso(price)}</span>}
                 </button>
               );
             })}
@@ -266,8 +295,8 @@ export default function JobOrderForm({ products, packages, extraRates = NO_EXTRA
                 )}
                 {extra > 0 && !resolved.merged && resolved.notice && <p className="text-[11px] text-amber-600">{resolved.notice}</p>}
                 {extra > 0 && (resolved.merged || resolved.lines.length > 1) && (
-                  extraRates.washCentsPer10 > 0
-                    ? <p className="text-[11px] text-zinc-500">Extra wash: <strong>{formatPeso(extraChargeCents(extraRates, "washer", extra))}</strong> added to the total.</p>
+                  extraChargeCents(extraRates, "washer", 10, tier) > 0
+                    ? <p className="text-[11px] text-zinc-500">Extra wash: <strong>{formatPeso(extraChargeCents(extraRates, "washer", extra, tier))}</strong> added to the total.</p>
                     : pkgId && <p className="text-[11px] text-amber-600">No extra wash price is set yet, so nothing is added. Set it in Admin → Packages.</p>
                 )}
               </div>

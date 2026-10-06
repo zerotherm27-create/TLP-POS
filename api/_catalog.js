@@ -38,8 +38,14 @@ export const resolveWash = (products, baseId, extraMinutes) => {
 };
 
 /** Same rules as packages/shared/src/pricing.ts (the browser uses that copy; keep both in step). */
-export const extraChargeCents = (rates, kind, minutes) =>
-  Math.round((((kind === "washer" ? rates?.washCentsPer10 : rates?.dryCentsPer10) ?? 0) * Math.max(0, minutes)) / 10);
+export const extraRateCents = (rates, kind, tier = "giant") => {
+  const regular = (kind === "washer" ? rates?.washCentsPer10 : rates?.dryCentsPer10) ?? 0;
+  const large = kind === "washer" ? rates?.titanWashCentsPer10 : rates?.titanDryCentsPer10;
+  return tier === "titan" && large ? large : regular;
+};
+
+export const extraChargeCents = (rates, kind, minutes, tier = "giant") =>
+  Math.round((extraRateCents(rates, kind, tier) * Math.max(0, minutes)) / 10);
 
 export const allocatePackagePrice = (priceCents, programs) => {
   if (programs.length === 0) return [];

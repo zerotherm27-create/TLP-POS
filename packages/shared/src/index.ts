@@ -30,7 +30,8 @@ export interface ServicePackage {
   id: string;
   name: string;
   description?: string; // short sub-description shown under the name
-  priceCents?: number; // what the customer pays for the whole package
+  priceCents?: number; // what the customer pays for the whole package (regular machines)
+  titanPriceCents?: number; // the price when it runs on the larger titan machines; 0/absent = not offered
   services: string[]; // product IDs
   createdAt: string;
 }
@@ -107,6 +108,7 @@ export interface JobOrder {
   paymentStatus: PaymentStatus;
   fulfillmentStage: FulfillmentStage;
   paymentMethod?: PaymentMethod;
+  tier?: "giant" | "titan"; // machine size this order was sold for (absent = regular)
   packageId?: string;
   packageName?: string; // the package this order was sold as, e.g. "Wash & Dry"
   createdAt: string;
@@ -175,5 +177,5 @@ export { rankMachines, rankWasherPairs, planDryers, machineNumber, computeAlerts
 export type { Alert, AlertKind, MachineSuggestion, WasherPair, DryerChoice, DryerPlan } from "./insights.js";
 export { resolveWash, EXTRA_WASH_STEPS } from "./extraWash.js";
 export type { ResolvedWash } from "./extraWash.js";
-export { allocatePackagePrice, extraChargeCents, NO_EXTRA_RATES } from "./pricing.js";
+export { allocatePackagePrice, extraChargeCents, extraRateCents, packagePriceFor, NO_EXTRA_RATES } from "./pricing.js";
 export type { ExtraRates } from "./pricing.js";

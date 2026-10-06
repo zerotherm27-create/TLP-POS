@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { requireUser } from "../_auth.js";
-import { extraChargeCents, loadExtraRates, loadProducts } from "../_catalog.js";
+import { extraChargeCents, extraRateCents, loadExtraRates, loadProducts } from "../_catalog.js";
 import { freeMachinePatch, fromMachineRow } from "../_machines.js";
 import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
@@ -70,9 +70,12 @@ export default async function handler(req, res) {
     const now = new Date().toISOString();
     const minutes = Math.round(addon.durationMinutes);
     const rates = await loadExtraRates();
-    const rate = machine.kind === "washer" ? rates.washCentsPer10 : rates.dryCentsPer10;
-    // Extra time is priced per 10 minutes at the admin rate; if no rate is set, fall back to the program's own price.
-    const extraPriceCents = rate > 0 ? extraChargeCents(rates, machine.kind, minutes) : addon.priceCents;
+    const machineTier = machine.tier === "titan" ? "titan" : "giant";
+    // Extra time is priced per 10 minutes at the admin rate (larger machines can have their own rate);
+    // if no rate is set, fall back to the program's own price.
+    const extraPriceCents = extraRateCents(rates, machine.kind, machineTier) > 0
+      ? extraChargeCents(rates, machine.kind, minutes, machineTier)
+      : addon.priceCents;
     let updatedMachine;
     let undo;
 
