@@ -21,10 +21,11 @@ export default function LoginScreen({ noAccess }: { noAccess?: boolean }) {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center px-5 bg-[#f4f6f8]">
       <div className="w-full max-w-sm bg-white rounded-3xl border border-zinc-100 p-7" style={{ boxShadow: "0 8px 32px -12px rgba(0,0,0,0.12)" }}>
-        <img src="/logo.png" alt="The Laundry Project" className="h-12 w-auto mb-5" />
-        <div className="mb-5">
-          <div className="text-[13px] text-zinc-500 leading-none">Powered by: <strong className="text-zinc-900">{APP_NAME}</strong></div>
-          <div className="text-[11px] text-zinc-400 mt-1.5">Staff & admin sign in</div>
+        <div className="flex flex-col items-center text-center mb-6">
+          <img src="/logo.png" alt="LaundroDesk" className="h-28 w-auto" />
+          <div className="text-[12px] text-zinc-400 mt-3">
+            <span className="font-semibold text-zinc-500">The Laundry Project</span> · Staff &amp; admin sign in
+          </div>
         </div>
 
         {noAccess ? (
