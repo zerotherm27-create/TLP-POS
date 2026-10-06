@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   ClipboardList,
   WashingMachine,
-  Receipt,
+  PhilippinePeso,
   ShieldCheck,
   ChevronRight,
 } from "lucide-react";
@@ -20,7 +20,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "overview", label: "Overview", Icon: LayoutDashboard },
   { id: "orders", label: "Job Orders", Icon: ClipboardList },
   { id: "machines", label: "Machines", Icon: WashingMachine },
-  { id: "transactions", label: "Transactions", Icon: Receipt },
+  { id: "transactions", label: "Transactions", Icon: PhilippinePeso },
   { id: "admin", label: "Admin", Icon: ShieldCheck, adminOnly: true },
 ];
 
