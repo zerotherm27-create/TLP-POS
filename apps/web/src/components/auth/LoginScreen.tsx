@@ -23,8 +23,8 @@ export default function LoginScreen({ noAccess }: { noAccess?: boolean }) {
       <div className="w-full max-w-sm bg-white rounded-3xl border border-zinc-100 p-7" style={{ boxShadow: "0 8px 32px -12px rgba(0,0,0,0.12)" }}>
         <img src="/logo.png" alt="The Laundry Project" className="h-12 w-auto mb-5" />
         <div className="mb-5">
-          <div className="text-[15px] font-bold text-zinc-900 leading-none">{APP_NAME}</div>
-          <div className="text-[11px] text-zinc-400 mt-1">Staff & admin sign in</div>
+          <div className="text-[13px] text-zinc-500 leading-none">Powered by: <strong className="text-zinc-900">{APP_NAME}</strong></div>
+          <div className="text-[11px] text-zinc-400 mt-1.5">Staff & admin sign in</div>
         </div>
 
         {noAccess ? (

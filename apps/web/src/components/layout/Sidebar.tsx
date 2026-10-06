@@ -45,8 +45,8 @@ export default function Sidebar({ active, isAdmin, role, onChangeSection, onTogg
         <div className="flex items-center gap-2.5">
           <img src="/logo-mark.png" alt="" className="w-8 h-8 rounded-xl bg-white shrink-0" />
           <div>
-            <div className="text-white font-semibold text-sm leading-none tracking-tight">LaundroDesk</div>
-            <div className="text-white/50 text-[11px] leading-tight mt-0.5">by The Laundry Project</div>
+            <div className="text-white font-semibold text-sm leading-none tracking-tight">The Laundry Project</div>
+            <div className="text-white/50 text-[11px] leading-tight mt-0.5">Powered by: LaundroDesk</div>
           </div>
         </div>
       </div>
