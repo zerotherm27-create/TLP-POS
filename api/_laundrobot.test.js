@@ -150,3 +150,42 @@ test("if the package isn't found, a recognised order is not invented; tagged ser
 test("services that are not machine services (handwash, dry cleaning) are skipped", () => {
   assert.equal(mapLaundrobotOrder(raw([{ quantity: 1, serviceName: "Dry cleaning - Suit", options: ["Dark"] }]), { packages: [FULL_CARE] }), null);
 });
+
+test("order BKG-000287: two machine-wash rows with +10 min wash add-ons -> merged 45-min washes, Titan row on the large machines, total 640", () => {
+  const m = mapLaundrobotOrder(
+    {
+      id: "BKG-000287", customerName: "Jojo Cruzado",
+      services: [
+        {
+          quantity: 1, priceCents: 32500, extras: [{ kind: "washer", minutes: 10 }],
+          serviceName: "SELF SERVICE - CLOTHES (Own Detergent & Fab Con)",
+          options: ["CLOTHES MACHINE WASH : CLOTHES SELF SERVICE TITAN BYODFC (max 12kg / load)"],
+        },
+        {
+          quantity: 1, priceCents: 31500, extras: [{ kind: "washer", minutes: 10 }],
+          serviceName: "FULL SERVICE - BEDSHEETS / TOWELS",
+          options: ["BEDSHEETS / TOWELS MACHINE WASH: BEDSHEETS / TOWELS SELF SERVICE GIANT (max 5kg / load)"],
+        },
+      ],
+    },
+    { packages: [FULL_CARE] }
+  );
+  assert.deepEqual(m.services.map((l) => l.productId), ["p3", "p5", "p3", "p5"]); // 35+10 -> the 45-min wash; dry stays 30
+  assert.deepEqual(m.services.map((l) => l.tier), ["titan", "titan", undefined, undefined]); // Titan row large, Giant row regular
+  assert.deepEqual(m.services.map((l) => l.priceCents), [16250, 16250, 15750, 15750]);
+  assert.equal(m.services.reduce((t, l) => t + l.priceCents, 0), 64000);
+  assert.match(m.services[0].note, /TITAN BYODFC.*45|\+ 10 min extra/); // staff see the size/own-detergent text and the extra
+  assert.match(m.services[0].note, /BYODFC/);
+  assert.equal(m.tier, "titan");
+});
+
+test("add-ons are spread across the bags: +10 x1 on two bags extends one bag, +10 x2 extends both, dry add-ons merge too", () => {
+  const run = (extras) =>
+    mapLaundrobotOrder(raw([{ quantity: 2, priceCents: 60000, serviceName: "FULL SERVICE - CLOTHES", options: ["GIANT (max 8kg / load)"], extras }]), { packages: [FULL_CARE] })
+      .services.map((l) => l.productId);
+  assert.deepEqual(run([{ kind: "washer", minutes: 10 }]), ["p3", "p5", "p2", "p5"]); // bag 1 gets the +10
+  assert.deepEqual(run([{ kind: "washer", minutes: 20 }]), ["p3", "p5", "p3", "p5"]); // both bags
+  assert.deepEqual(run([{ kind: "dryer", minutes: 10 }]), ["p2", "p6", "p2", "p5"]); // dry 30 + 10 -> the 40-min dry program
+  assert.deepEqual(run([]), ["p2", "p5", "p2", "p5"]);
+  assert.deepEqual(run(undefined), ["p2", "p5", "p2", "p5"]);
+});

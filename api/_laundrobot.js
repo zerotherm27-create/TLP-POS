@@ -1,5 +1,5 @@
 import { createRequire } from "module";
-import { allocatePackagePrice } from "./_catalog.js";
+import { allocatePackagePrice, resolveExtra } from "./_catalog.js";
 import { supabaseRequest, toJobOrderRow } from "./_supabase.js";
 
 const require = createRequire(import.meta.url);
@@ -53,7 +53,7 @@ export const fetchLaundrobotOrders = async () => {
 //   contactNumber?: string,
 //   notes?: string,
 //   orderUrl?: string,
-//   services: [{ kind: string, durationMinutes?: number, quantity?: number, priceCents?: number, serviceName?: string, size?: string, options?: string[], weightKg?: number }]
+//   services: [{ kind: string, durationMinutes?: number, quantity?: number, priceCents?: number, serviceName?: string, size?: string, options?: string[], extras?: [{ kind, minutes }], weightKg?: number }]
 // }
 // Returns null when the order contains no machine-wash/dry services (e.g. handwash, dryclean).
 export const mapLaundrobotOrder = (rawOrder, { largeKg = 10, packages = [] } = {}) => {
@@ -98,14 +98,27 @@ export const mapLaundrobotOrder = (rawOrder, { largeKg = 10, packages = [] } = {
         matchedPackage = matchedPackage ?? pkg;
         const perBagCents = s.priceCents != null ? Math.round(s.priceCents / count) : undefined;
         const shares = perBagCents != null ? allocatePackagePrice(perBagCents, programs) : [];
-        return Array.from({ length: count }, () =>
-          programs.map((program, i) => ({
-            lineId: crypto.randomUUID(),
-            productId: program.id,
-            quantity: 1,
-            ...(shares.length ? { priceCents: shares[i] } : {}),
-            ...extras,
-          }))
+        // "+10 Mins Wash/Dry" add-ons: each 10-minute unit goes to a different bag in turn (bag 1, bag 2, ...), so
+        // "+10 x 1" on two bags extends one bag, and "+10 x 2" extends both. Each bag's extra merges into a program.
+        const extraUnits = (kind) =>
+          Math.min(30, Math.max(0, Math.round(((Array.isArray(s.extras) ? s.extras : []).filter((e) => e?.kind === kind).reduce((t, e) => t + Number(e.minutes || 0), 0)) / 10)));
+        const unitsFor = (kind, bag) => {
+          const total = extraUnits(kind);
+          return Math.min(3, Math.floor(total / count) + (bag < total % count ? 1 : 0)) * 10;
+        };
+        return Array.from({ length: count }, (_unused, bag) =>
+          programs.flatMap((program, i) => {
+            const resolved = resolveExtra(products, program.id, unitsFor(program.machineKind, bag));
+            const used = resolved.lines.length ? resolved.lines : [program];
+            return used.map((line, lineIndex) => ({
+              lineId: crypto.randomUUID(),
+              productId: line.id,
+              quantity: 1,
+              ...(shares.length ? { priceCents: lineIndex === 0 ? shares[i] : 0 } : {}),
+              ...extras,
+              ...(resolved.merged ? { note: `${label ? label + " · " : ""}${resolved.note}` } : {}),
+            }));
+          })
         ).flat();
       }
     }

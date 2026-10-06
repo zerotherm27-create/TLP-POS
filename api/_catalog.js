@@ -12,30 +12,39 @@ export const loadProducts = async () => {
   return require("./_products.json");
 };
 
-/** Same rule as packages/shared/src/extraWash.ts (the browser uses that copy; keep both in step). */
-export const resolveWash = (products, baseId, extraMinutes) => {
+/**
+ * Extra minutes on a wash or dry program (same rule as packages/shared/src/extraWash.ts for washers).
+ * 35 + 10 becomes the existing 45-min wash program; 30 + 10 becomes the 40-min dry program.
+ * If no program has that total, the extra stays a separate load of the matching length, or is left out with a notice.
+ */
+export const resolveExtra = (products, baseId, extraMinutes) => {
   const base = products.find((p) => p.id === baseId);
   if (!base) return { lines: [], merged: false };
   if (!extraMinutes || extraMinutes <= 0) return { lines: [base], merged: false };
 
+  const kind = base.machineKind;
   const total = base.durationMinutes + extraMinutes;
-  const merged = products.find((p) => p.machineKind === "washer" && !p.isExtraTime && p.durationMinutes === total && p.id !== base.id);
+  const merged = products.find((p) => p.machineKind === kind && !p.isExtraTime && p.durationMinutes === total && p.id !== base.id);
   if (merged) return { lines: [merged], merged: true, note: `${base.name} + ${extraMinutes} min extra` };
 
-  const extra = products.find((p) => p.machineKind === "washer" && p.durationMinutes === extraMinutes && p.id !== base.id);
+  const extra = products.find((p) => p.machineKind === kind && p.durationMinutes === extraMinutes && p.id !== base.id);
+  const word = kind === "washer" ? "wash" : "dry";
   if (extra) {
     return {
       lines: [base, extra],
       merged: false,
-      notice: `There's no ${total}-min wash program, so the extra ${extraMinutes} min was added as a separate wash load.`,
+      notice: `There's no ${total}-min ${word} program, so the extra ${extraMinutes} min was added as a separate ${word} load.`,
     };
   }
   return {
     lines: [base],
     merged: false,
-    notice: `There's no ${total}-min wash program and no ${extraMinutes}-min one, so the extra wash was left out. Add it in Admin → Products.`,
+    notice: `There's no ${total}-min ${word} program and no ${extraMinutes}-min one, so the extra ${word} was left out. Add it in Admin → Products.`,
   };
 };
+
+/** Same rule as packages/shared/src/extraWash.ts (the browser uses that copy; keep both in step). */
+export const resolveWash = (products, baseId, extraMinutes) => resolveExtra(products, baseId, extraMinutes);
 
 /** Same rules as packages/shared/src/pricing.ts (the browser uses that copy; keep both in step). */
 export const extraRateCents = (rates, kind, tier = "giant") => {
