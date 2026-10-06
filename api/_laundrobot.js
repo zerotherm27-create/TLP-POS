@@ -168,7 +168,7 @@ export const buildOrderBundle = (mapped) => {
     ...(mapped.packageId ? { packageId: mapped.packageId, packageName: mapped.packageName } : {}),
     assignments: [],
     status: "queued",
-    paymentStatus: "unpaid",
+    paymentStatus: "paid", // LaundroBot only sends an order once it is paid
     fulfillmentStage: "queued",
     createdAt: now,
     updatedAt: now,
