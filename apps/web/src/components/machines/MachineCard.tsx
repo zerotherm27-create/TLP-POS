@@ -155,7 +155,7 @@ function RunningCard({ machine }: { machine: Machine }) {
       {/* Customer */}
       <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">
         <div className="h-px bg-white/10 mb-1.5 sm:mb-2" />
-        <div className="text-white text-[9px] sm:text-[10px] font-semibold truncate">{machine.customerName ?? machine.name}</div>
+        <div className="text-white text-[8px] sm:text-[10px] font-semibold leading-tight break-words line-clamp-2 sm:line-clamp-1">{machine.customerName ?? machine.name}</div>
       </div>
     </motion.div>
   );
@@ -185,7 +185,7 @@ function OnlineCard({ machine }: { machine: Machine }) {
       </div>
       <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">
         <div className="h-px bg-zinc-100 mb-1.5 sm:mb-2" />
-        <div className="text-[9px] sm:text-[10px] font-semibold text-zinc-700 truncate">{machine.name}</div>
+        <div className="text-[8px] sm:text-[10px] font-semibold leading-tight break-words line-clamp-2 sm:line-clamp-1 text-zinc-700">{machine.name}</div>
         <div className="flex items-center gap-1 mt-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
           <span className="text-[8px] sm:text-[9px] text-emerald-600 font-medium">Available</span>
@@ -222,7 +222,7 @@ function OfflineCard({ machine }: { machine: Machine }) {
       </div>
       <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">
         <div className="h-px bg-zinc-200 mb-1.5 sm:mb-2" />
-        <div className="text-[9px] sm:text-[10px] font-semibold text-zinc-400 truncate">{machine.name}</div>
+        <div className="text-[8px] sm:text-[10px] font-semibold leading-tight break-words line-clamp-2 sm:line-clamp-1 text-zinc-400">{machine.name}</div>
         <div className="flex items-center gap-1 mt-1">
           <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 shrink-0" />
           <span className="text-[8px] sm:text-[9px] text-zinc-400 font-medium">

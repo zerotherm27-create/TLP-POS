@@ -98,7 +98,7 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
       <MachineCard
         machine={m}
         tubCleaningDue={isDue(m)}
-        onMarkCleaned={isAdmin ? onMarkCleaned : undefined}
+        onMarkCleaned={onMarkCleaned}
         onSelect={m.status === "running" ? handleCardSelect : undefined}
       />
     </motion.div>
