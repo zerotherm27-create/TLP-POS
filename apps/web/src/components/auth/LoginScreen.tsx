@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { WashingMachine } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { authConfigured } from "../../lib/supabase";
 
@@ -22,14 +21,10 @@ export default function LoginScreen({ noAccess }: { noAccess?: boolean }) {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center px-5 bg-[#f4f6f8]">
       <div className="w-full max-w-sm bg-white rounded-3xl border border-zinc-100 p-7" style={{ boxShadow: "0 8px 32px -12px rgba(0,0,0,0.12)" }}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: "#009eb5" }}>
-            <WashingMachine size={20} className="text-white" strokeWidth={1.8} />
-          </div>
-          <div>
-            <div className="text-[15px] font-bold text-zinc-900 leading-none">{APP_NAME}</div>
-            <div className="text-[11px] text-zinc-400 mt-1">Staff & admin sign in</div>
-          </div>
+        <img src="/logo.png" alt="The Laundry Project" className="h-12 w-auto mb-5" />
+        <div className="mb-5">
+          <div className="text-[15px] font-bold text-zinc-900 leading-none">{APP_NAME}</div>
+          <div className="text-[11px] text-zinc-400 mt-1">Staff & admin sign in</div>
         </div>
 
         {noAccess ? (
