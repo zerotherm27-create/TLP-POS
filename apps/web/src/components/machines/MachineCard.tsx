@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { WashingMachine, Wind } from "lucide-react";
 import type { Machine } from "@tlp/shared";
@@ -266,31 +267,44 @@ export default function MachineCard({ machine, onSelect, tubCleaningDue, onMarkC
             transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
             style={{ boxShadow: "inset 0 0 0 2px #f59e0b" }}
           />
-          {confirming ? (
+          {!confirming && (
+              <motion.button
+                className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase"
+                style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d" }}
+                animate={{ scale: [1, 1.06, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                onClick={(e) => { e.stopPropagation(); if (onMarkCleaned) setConfirming(true); }}
+              >TUB</motion.button>
+          )}
+          {confirming && createPortal(
             <div
-              className="absolute inset-0 rounded-2xl bg-white/95 flex flex-col items-center justify-center gap-1 p-1 text-center"
-              onClick={(e) => e.stopPropagation()}
+              className="fixed inset-0 z-[80] flex items-center justify-center px-6 bg-black/40"
+              onClick={(e) => { e.stopPropagation(); setConfirming(false); }}
             >
-              <div className="text-[8px] sm:text-[10px] font-bold text-amber-700 leading-tight">Tub clean done?</div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => { onMarkCleaned?.(machine.id); setConfirming(false); }}
-                  className="h-5 px-1.5 rounded-full text-[8px] font-bold bg-amber-500 text-white border border-amber-600"
-                >Yes</button>
-                <button
-                  onClick={() => setConfirming(false)}
-                  className="h-5 px-1.5 rounded-full text-[8px] font-bold bg-white text-zinc-500 border border-zinc-200"
-                >No</button>
+              <div
+                role="dialog"
+                aria-label="Confirm tub clean"
+                className="w-full max-w-xs rounded-3xl bg-white px-6 pt-6 pb-5 text-center"
+                style={{ boxShadow: "0 20px 50px -12px rgba(0,0,0,0.35)" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-base font-bold text-zinc-900">Tub clean done?</div>
+                <div className="text-sm text-zinc-500 mt-1.5">{machine.name} · {machine.publicCode}</div>
+                <div className="grid grid-cols-2 gap-3 mt-6">
+                  <button
+                    onClick={() => setConfirming(false)}
+                    className="h-12 rounded-2xl text-sm font-semibold text-zinc-600 bg-zinc-100 active:scale-[0.97] transition-transform"
+                  >No</button>
+                  <button
+                    onClick={() => { onMarkCleaned?.(machine.id); setConfirming(false); }}
+                    className="h-12 rounded-2xl text-sm font-bold text-white active:scale-[0.97] transition-transform"
+                    style={{ background: "#009eb5" }}
+                  >Yes</button>
+                </div>
               </div>
-            </div>
-          ) : (
-            <motion.button
-              className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase"
-              style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fcd34d" }}
-              animate={{ scale: [1, 1.06, 1] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              onClick={(e) => { e.stopPropagation(); if (onMarkCleaned) setConfirming(true); }}
-            >TUB</motion.button>
+            </div>,
+            document.body
+          )}
           )}
         </>
       )}

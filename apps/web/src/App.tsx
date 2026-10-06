@@ -314,7 +314,7 @@ export default function App() {
                           const since = (m.cycleCount ?? 0) - (m.lastTubCleanCycle ?? 0);
                           const due = m.kind === "washer" && since >= tubCleanThreshold;
                           return (
-                            <div key={m.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 px-4 sm:px-5 py-3.5 sm:py-3 border-b border-zinc-50 last:border-0">
+                            <div key={m.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5 sm:gap-2.5 px-4 sm:px-5 py-5 sm:py-3 border-b border-zinc-50 last:border-0">
                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                                 <span className="text-[11px] font-bold bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-lg tabular-nums">{m.publicCode}</span>
                                 <span className="text-sm text-zinc-700">{m.name}</span>
@@ -322,7 +322,7 @@ export default function App() {
                                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">Clean due</span>
                                 )}
                               </div>
-                              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 sm:gap-6">
+                              <div className="flex flex-wrap items-center gap-x-5 gap-y-3 sm:gap-6">
                                 <span className="text-sm font-bold tabular-nums text-zinc-500 sm:w-20 sm:text-right">
                                   {m.cycleCount ?? 0} <span className="text-[10px] font-normal text-zinc-300">total</span>
                                 </span>
@@ -335,18 +335,18 @@ export default function App() {
                                       <span className="text-[11px] text-amber-700 font-semibold">Tub clean done?</span>
                                       <button
                                         onClick={() => { handleMarkCleaned(m.id); setConfirmCleanId(null); }}
-                                        className="h-9 sm:h-7 px-4 sm:px-3 text-[11px] font-bold text-white rounded-xl"
+                                        className="h-10 sm:h-7 px-5 sm:px-3 text-[12px] sm:text-[11px] font-bold text-white rounded-xl"
                                         style={{ background: "#009eb5" }}
                                       >Yes</button>
                                       <button
                                         onClick={() => setConfirmCleanId(null)}
-                                        className="h-9 sm:h-7 px-4 sm:px-3 text-[11px] font-semibold text-zinc-500 bg-zinc-100 rounded-xl"
+                                        className="h-10 sm:h-7 px-5 sm:px-3 text-[12px] sm:text-[11px] font-semibold text-zinc-500 bg-zinc-100 rounded-xl"
                                       >No</button>
                                     </div>
                                   ) : (
                                     <button
                                       onClick={() => setConfirmCleanId(m.id)}
-                                      className="h-9 sm:h-7 px-4 sm:px-3 text-[11px] font-semibold text-white rounded-xl whitespace-nowrap"
+                                      className="h-10 sm:h-7 px-5 sm:px-3 text-[12px] sm:text-[11px] font-semibold text-white rounded-xl whitespace-nowrap my-0.5 sm:my-0"
                                       style={{ background: "#009eb5" }}
                                     >Mark Cleaned</button>
                                   )
