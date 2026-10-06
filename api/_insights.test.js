@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { summarize, manilaDayStart, manilaHour, formatPeso, hourLabel } from "./_insights.js";
+import { summarize, manilaDayStart, manilaHour, formatPeso, hourLabel, OPEN_HOUR, CLOSE_HOUR, OPERATING_MINUTES_PER_DAY } from "./_insights.js";
 
 const products = [
   { id: "pw", name: "35 min", machineKind: "washer", priceCents: 12000 },
@@ -79,4 +79,13 @@ test("summarize: empty day wording, and helpers", () => {
   assert.equal(formatPeso(12050), "₱120.50");
   assert.equal(hourLabel(16), "4 PM–5 PM");
   assert.equal(hourLabel(23), "11 PM–12 AM");
+});
+
+test("operating hours are 8 AM to 8 PM (720 minutes) and are reported to the app", () => {
+  assert.equal(OPEN_HOUR, 8);
+  assert.equal(CLOSE_HOUR, 20);
+  assert.equal(OPERATING_MINUTES_PER_DAY, 720);
+  const s = summarize({ orders: [], runs: [], machines, products, now: Date.parse("2026-10-07T08:00:00Z") });
+  assert.equal(s.openHour, 8);
+  assert.equal(s.closeHour, 20);
 });

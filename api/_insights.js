@@ -3,8 +3,11 @@
 const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000; // Asia/Manila is UTC+8 all year (no daylight saving)
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** How many minutes a machine could run per day; used for the utilization %. Tune to your opening hours. */
-export const OPERATING_MINUTES_PER_DAY = 12 * 60;
+/** Opening hours in Manila time (24h clock): open 8 AM, close 8 PM. Change these two numbers to adjust. */
+export const OPEN_HOUR = 8;
+export const CLOSE_HOUR = 20;
+/** How many minutes a machine could run per day; used for the utilization %. */
+export const OPERATING_MINUTES_PER_DAY = (CLOSE_HOUR - OPEN_HOUR) * 60;
 
 /** UTC timestamp (ms) of 00:00 Manila time on the day containing `ts`. */
 export const manilaDayStart = (ts) => Math.floor((ts + MANILA_OFFSET_MS) / DAY_MS) * DAY_MS - MANILA_OFFSET_MS;
@@ -101,6 +104,8 @@ export function summarize({ orders, runs, machines, products, range = "today", n
     orders: { count: live.length, loads, voided },
     sales: { totalCents, count: live.filter((o) => o.paymentStatus === "paid").length, byMethod },
     hours,
+    openHour: OPEN_HOUR,
+    closeHour: CLOSE_HOUR,
     busiestHour,
     topPrograms,
     machines: machineStats,

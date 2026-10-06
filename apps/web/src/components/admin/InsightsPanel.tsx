@@ -8,6 +8,8 @@ interface Summary {
   orders: { count: number; loads: number; voided: number };
   sales: { totalCents: number; count: number; byMethod: { cash: number; gcash: number; manual: number; online: number } };
   hours: number[];
+  openHour: number;
+  closeHour: number;
   busiestHour: number | null;
   topPrograms: { productId: string; name: string; kind?: "washer" | "dryer"; loads: number }[];
   machines: MachineStat[];
@@ -57,9 +59,12 @@ export default function InsightsPanel() {
   }, [range]);
 
   const peak = summary ? Math.max(1, ...summary.hours) : 1;
-  const firstHour = summary ? Math.max(0, summary.hours.findIndex((n) => n > 0)) : 0;
-  const lastHour = summary ? Math.max(firstHour, 23 - [...summary.hours].reverse().findIndex((n) => n > 0)) : 23;
-  const hoursShown = summary ? summary.hours.slice(Math.min(firstHour, 8), Math.max(lastHour, 20) + 1).map((n, i) => ({ n, h: Math.min(firstHour, 8) + i })) : [];
+  // Chart the opening hours; stretch it only if an order came in outside them.
+  const firstActive = summary ? summary.hours.findIndex((n) => n > 0) : -1;
+  const lastActive = summary ? 23 - [...summary.hours].reverse().findIndex((n) => n > 0) : -1;
+  const fromHour = summary ? (firstActive >= 0 ? Math.min(summary.openHour, firstActive) : summary.openHour) : 0;
+  const toHour = summary ? (firstActive >= 0 ? Math.max(summary.closeHour - 1, lastActive) : summary.closeHour - 1) : 0;
+  const hoursShown = summary ? summary.hours.slice(fromHour, toHour + 1).map((n, i) => ({ n, h: fromHour + i })) : [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -146,7 +151,7 @@ export default function InsightsPanel() {
                   </li>
                 ))}
               </ul>
-              <p className="text-[11px] text-zinc-300 mt-3">Bar = run time as a share of a 12-hour day.</p>
+              <p className="text-[11px] text-zinc-300 mt-3">Bar = run time as a share of the {summary.closeHour - summary.openHour}-hour day ({hour12(summary.openHour)}m–{hour12(summary.closeHour)}m).</p>
             </Section>
           </div>
         </div>
