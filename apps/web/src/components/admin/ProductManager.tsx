@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Pencil, Trash2, WashingMachine, Wind, Check, X } from "lucide-react";
 import type { Product, MachineKind } from "@tlp/shared";
+import { formatPeso } from "../../lib/format";
 
 interface Props {
   products: Product[];
@@ -20,13 +21,17 @@ const EMPTY_FORM = {
 
 export default function ProductManager({ products, onChange }: Props) {
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [priceText, setPriceText] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const washers = products.filter((p) => p.machineKind === "washer");
   const dryers = products.filter((p) => p.machineKind === "dryer");
 
+  const priceCents = Math.max(0, Math.round((parseFloat(priceText) || 0) * 100));
+
   const resetForm = () => {
+    setPriceText("");
     setForm({ ...EMPTY_FORM });
     setEditingId(null);
   };
@@ -34,13 +39,13 @@ export default function ProductManager({ products, onChange }: Props) {
   const save = () => {
     if (!form.name.trim() || form.durationMinutes < 1) return;
     if (editingId) {
-      onChange(products.map((p) => p.id === editingId ? { ...p, ...form } : p));
+      onChange(products.map((p) => p.id === editingId ? { ...p, ...form, priceCents } : p));
       resetForm();
     } else {
       const newProduct: Product = {
         id: `p-${Date.now()}`,
-        priceCents: 0,
         ...form,
+        priceCents,
       };
       onChange([...products, newProduct]);
       resetForm();
@@ -48,6 +53,7 @@ export default function ProductManager({ products, onChange }: Props) {
   };
 
   const startEdit = (p: Product) => {
+    setPriceText(p.priceCents ? String(p.priceCents / 100) : "");
     setForm({
       name: p.name,
       description: p.description ?? "",
@@ -143,6 +149,22 @@ export default function ProductManager({ products, onChange }: Props) {
               onChange={(e) => setForm((f) => ({ ...f, durationMinutes: parseInt(e.target.value) || 0 }))}
               className={inputClass}
             />
+          </div>
+
+          {/* Price */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Price (₱)</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400 pointer-events-none">₱</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={priceText}
+                onChange={(e) => setPriceText(e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1"))}
+                placeholder="0.00"
+                className={`${inputClass} pl-7`}
+              />
+            </div>
           </div>
 
           {/* Pulse + Delay row */}
@@ -257,6 +279,8 @@ export default function ProductManager({ products, onChange }: Props) {
                           <div className="text-[11px] text-zinc-400 mt-0.5 truncate">{p.description}</div>
                         )}
                         <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[11px] font-semibold text-[#007a8c]">{formatPeso(p.priceCents)}</span>
+                          <span className="text-zinc-200">·</span>
                           <span className="text-[11px] text-zinc-400">{p.durationMinutes} min</span>
                           <span className="text-zinc-200">·</span>
                           <span className="text-[11px] text-zinc-400">{p.pulse} pulse{p.pulse !== 1 ? "s" : ""}</span>
