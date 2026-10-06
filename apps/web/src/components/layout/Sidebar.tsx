@@ -51,18 +51,8 @@ export default function Sidebar({ active, isAdmin, role, onChangeSection, onTogg
 
       <div className="h-px bg-white/8 mx-5" />
 
-      {/* Branch + gateway */}
-      <div className="px-5 py-3">
-        <div className="text-white/40 text-[10px] font-medium uppercase tracking-widest mb-1">Branch</div>
-        <div className="text-white/80 text-xs font-medium">Katipunan Ave.</div>
-        <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#009eb5]/20 px-2 py-0.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#009eb5]" />
-          <span className="text-[#7dd9e8] text-[10px] font-medium">Gateway live</span>
-        </div>
-      </div>
-
       {/* Nav */}
-      <nav className="flex-1 px-3 pb-4 space-y-0.5">
+      <nav className="flex-1 px-3 pb-4 pt-3 space-y-0.5">
         {visible.map(({ id, label, Icon }) => {
           const isActive = active === id;
           return (
