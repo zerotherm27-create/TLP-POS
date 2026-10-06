@@ -154,33 +154,6 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
         </div>
       </div>
 
-      {/* ── Now Running hero strip ── */}
-      <AnimatePresence>
-        {running.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ type: "spring", stiffness: 300, damping: 28 }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <motion.span
-                animate={{ opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1.6, repeat: Infinity }}
-                className="w-2 h-2 rounded-full bg-[#009eb5]"
-              />
-              <span className="text-[11px] font-bold text-[#009eb5] uppercase tracking-widest">
-                Now Running
-              </span>
-              <div className="flex-1 h-px bg-[#009eb5]/15" />
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-[10px]">
-              {running.map((m, i) => renderCard(m, i * 0.06))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* ── Washers grid ── */}
       <div>
         <SectionLabel label="Washers" count={washers.length} />
