@@ -188,7 +188,7 @@ function MiniOnline({ machine }: { machine: Machine }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 280, damping: 28 }}
       className="rounded-2xl border flex flex-col overflow-hidden h-full"
-      style={{ background: "linear-gradient(165deg, #f2fafc 0%, #e2f3f7 100%)", borderColor: "#c9e7ee", boxShadow: "0 2px 8px -4px rgba(0,110,130,0.18)" }}
+      style={{ background: "linear-gradient(165deg, #e3f5f9 0%, #c2e4ed 100%)", borderColor: "#9fd2df", boxShadow: "0 2px 8px -4px rgba(0,110,130,0.25)" }}
     >
       <div className="flex items-center justify-between px-2 pt-2 pb-0 sm:px-2.5 sm:pt-2.5">
         <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 tracking-widest uppercase">{machine.publicCode}</span>
@@ -202,7 +202,7 @@ function MiniOnline({ machine }: { machine: Machine }) {
         </div>
       </div>
       <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">
-        <div className="h-px mb-1.5 sm:mb-2" style={{ background: "#c9e7ee" }} />
+        <div className="h-px mb-1.5 sm:mb-2" style={{ background: "#9fd2df" }} />
         <div className="text-[8px] sm:text-[10px] font-semibold leading-tight break-words line-clamp-2 sm:line-clamp-1 text-zinc-700">{machine.name}</div>
         <div className="flex items-center gap-1 mt-1">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
