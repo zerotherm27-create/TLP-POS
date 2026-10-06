@@ -1,4 +1,5 @@
 import { requireUser } from "../_auth.js";
+import { freeMachinePatch, fromMachineRow } from "../_machines.js";
 import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
 // Stage is driven by the most recently assigned machine kind.
@@ -15,7 +16,7 @@ export default async function handler(req, res) {
     if (!ensurePost(req, res)) return;
     if (!(await requireUser(req, res))) return;
 
-    const { orderId, machineId, productId, lineId } = await readJson(req);
+    const { orderId, machineId, productId, lineId, durationMinutes } = await readJson(req);
     if (!orderId || !machineId || !productId || !lineId) {
       sendJson(res, 400, { ok: false, message: "orderId, machineId, productId, and lineId are required." });
       return;
@@ -25,6 +26,12 @@ export default async function handler(req, res) {
     const UUID_RE = /^[0-9a-f-]{36}$/;
     if (!ID_RE.test(orderId) || !ID_RE.test(machineId) || !ID_RE.test(productId) || !UUID_RE.test(lineId)) {
       sendJson(res, 400, { ok: false, message: "Invalid id format." });
+      return;
+    }
+
+    const minutes = Number(durationMinutes);
+    if (!Number.isFinite(minutes) || minutes <= 0 || minutes > 600) {
+      sendJson(res, 400, { ok: false, message: "A valid cycle length (durationMinutes) is required." });
       return;
     }
 
@@ -68,13 +75,48 @@ export default async function handler(req, res) {
 
     order.fulfillmentStage = computeStage(order, products);
 
-    await supabaseRequest(`tlp_job_orders?id=eq.${safeOrderId}`, {
-      method: "PATCH",
-      body: JSON.stringify(toJobOrderRow(order)),
-      headers: { Prefer: "return=minimal" },
-    });
+    // Claim the machine first, and only if it is still free (guards against two people assigning at once).
+    const claimed = await supabaseRequest(
+      `tlp_machines?id=eq.${encodeURIComponent(machineId)}&status=eq.online`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "running",
+          active_job_order_id: orderId,
+          customer_name: order.customerName,
+          remaining_minutes: Math.round(minutes),
+          started_at: null,
+          last_seen_at: now,
+        }),
+        headers: { Prefer: "return=representation" },
+      }
+    );
+    if (!claimed?.length) {
+      const known = await supabaseRequest(`tlp_machines?id=eq.${encodeURIComponent(machineId)}&select=id&limit=1`);
+      sendJson(res, known?.length ? 409 : 404, {
+        ok: false,
+        message: known?.length ? "That machine isn't available right now." : "Machine not found.",
+      });
+      return;
+    }
 
-    sendJson(res, 200, { ok: true, jobOrder: order });
+    try {
+      await supabaseRequest(`tlp_job_orders?id=eq.${safeOrderId}`, {
+        method: "PATCH",
+        body: JSON.stringify(toJobOrderRow(order)),
+        headers: { Prefer: "return=minimal" },
+      });
+    } catch (e) {
+      // Couldn't save the order — give the machine back so it isn't stuck.
+      await supabaseRequest(`tlp_machines?id=eq.${encodeURIComponent(machineId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(freeMachinePatch()),
+        headers: { Prefer: "return=minimal" },
+      });
+      throw e;
+    }
+
+    sendJson(res, 200, { ok: true, jobOrder: order, machine: fromMachineRow(claimed[0]) });
   } catch (error) {
     sendJson(res, 500, {
       ok: false,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "./components/layout/Sidebar";
 import BottomNav, { type Section } from "./components/layout/BottomNav";
@@ -14,9 +14,8 @@ import { authFetch } from "./lib/supabase";
 import { useOrders } from "./hooks/useOrders";
 import { usePackages } from "./hooks/usePackages";
 import { useSettings } from "./hooks/useSettings";
-import type { Machine } from "@tlp/shared";
+import { useMachines } from "./hooks/useMachines";
 import {
-  mockMachines,
   mockJobOrders,
   mockSales,
 } from "./lib/mockData";
@@ -26,7 +25,7 @@ const spring = { type: "spring" as const, stiffness: 320, damping: 30 };
 export default function App() {
   const [section, setSection] = useState<Section>("overview");
   const { role, isAdmin, signOut } = useRole();
-  const [machines, setMachines] = useState<Machine[]>(mockMachines);
+  const { machines, refreshMachines, patchMachine } = useMachines();
   const { products, tubCleanThreshold, settingsError, setProducts, setTubCleanThreshold } = useSettings();
   const { packages, error: packagesError, createPackage, removePackage, movePackage } = usePackages();
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines">("programs");
@@ -36,77 +35,77 @@ export default function App() {
   const [confirmCleanId, setConfirmCleanId] = useState<string | null>(null);
   const { orders, updateOrder } = useOrders("b1", mockJobOrders);
 
-  const handleAssign = async (orderId: string, machineId: string, productId: string, lineId: string) => {
-    try {
-      const res = await authFetch("/api/orders/assign", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ orderId, machineId, productId, lineId }),
-      });
-      const data = await res.json();
-      if (data.ok && data.jobOrder) {
-        updateOrder(data.jobOrder);
-      }
-    } catch {
-      // API unavailable — update locally only
-    }
-    // Optimistic local update for machines
-    setMachines((prev) =>
-      prev.map((m) =>
-        m.id === machineId
-          ? { ...m, status: "running", activeJobOrderId: orderId }
-          : m
-      )
-    );
-    // Optimistic local update for orders (for when API is unavailable)
-    const order = orders.find((o) => o.id === orderId);
-    if (order) {
-      const newAssignment = { lineId, machineId, productId, assignedAt: new Date().toISOString() };
-      const allAssigned = [...order.assignments, newAssignment];
-      const lastProduct = products.find((p) => p.id === productId);
-      updateOrder({
-        ...order,
-        status: "in_progress",
-        fulfillmentStage: lastProduct?.machineKind === "dryer" ? "drying" : "washing",
-        assignments: allAssigned,
-        updatedAt: new Date().toISOString(),
-      });
-    }
+  // Server calls run one after another so e.g. "restart" (release, then assign) can't race itself.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const enqueue = <T,>(fn: () => Promise<T>): Promise<T> => {
+    const run = queue.current.then(fn, fn);
+    queue.current = run.catch(() => undefined);
+    return run;
   };
 
+  const [notice, setNotice] = useState<string | null>(null);
+  const showNotice = (msg: string) => {
+    setNotice(msg);
+    setTimeout(() => setNotice((cur) => (cur === msg ? null : cur)), 5000);
+  };
+
+  const callApi = async (url: string, body: unknown) => {
+    const res = await authFetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data?.message ?? "Something went wrong. Try again.");
+    return data;
+  };
+
+  const handleAssign = (orderId: string, machineId: string, productId: string, lineId: string) =>
+    enqueue(async () => {
+      try {
+        const durationMinutes = products.find((p) => p.id === productId)?.durationMinutes;
+        const data = await callApi("/api/orders/assign", { orderId, machineId, productId, lineId, durationMinutes });
+        if (data.jobOrder) updateOrder(data.jobOrder);
+      } catch (e) {
+        showNotice(e instanceof Error ? e.message : "Couldn't assign the machine.");
+      }
+      await refreshMachines();
+    });
+
   const handleMarkCleaned = (machineId: string) => {
-    setMachines((prev) =>
-      prev.map((m) =>
-        m.id === machineId ? { ...m, lastTubCleanCycle: m.cycleCount ?? 0 } : m
-      )
-    );
+    patchMachine(machineId, { lastTubCleanCycle: machines.find((m) => m.id === machineId)?.cycleCount ?? 0 });
+    return enqueue(async () => {
+      try {
+        await callApi("/api/machines/action", { machineId, action: "clean" });
+      } catch (e) {
+        showNotice(e instanceof Error ? e.message : "Couldn't save the tub clean.");
+      }
+      await refreshMachines();
+    });
   };
 
   const handleStartMachine = (machineId: string) => {
-    setMachines((prev) =>
-      prev.map((m) => m.id === machineId ? { ...m, startedAt: new Date().toISOString() } : m)
-    );
+    patchMachine(machineId, { startedAt: new Date().toISOString() });
+    return enqueue(async () => {
+      try {
+        await callApi("/api/machines/action", { machineId, action: "start" });
+      } catch (e) {
+        showNotice(e instanceof Error ? e.message : "Couldn't start the timer.");
+      }
+      await refreshMachines();
+    });
   };
 
-  const handleUnassign = (orderId: string, lineId: string, machineId: string, reason?: string, mode?: "rework" | "reassign") => {
-    if (reason && mode) {
-      console.log(`[${new Date().toISOString()}] ${mode.toUpperCase()} — order ${orderId}, machine ${machineId}. Reason: ${reason}`);
-    }
-    setMachines((prev) =>
-      prev.map((m) => m.id === machineId ? { ...m, status: "online" as const, activeJobOrderId: undefined } : m)
-    );
-    const order = orders.find((o) => o.id === orderId);
-    if (order) {
-      const remaining = order.assignments.filter((a: { lineId: string }) => a.lineId !== lineId);
-      updateOrder({
-        ...order,
-        assignments: remaining,
-        status: remaining.length === 0 ? "queued" : "in_progress",
-        fulfillmentStage: remaining.length === 0 ? "queued" : order.fulfillmentStage,
-        updatedAt: new Date().toISOString(),
-      });
-    }
-  };
+  const handleUnassign = (orderId: string, lineId: string, machineId: string, reason?: string, mode?: "rework" | "reassign") =>
+    enqueue(async () => {
+      try {
+        const data = await callApi("/api/orders/unassign", { orderId, lineId, machineId, reason, mode });
+        if (data.jobOrder) updateOrder(data.jobOrder);
+      } catch (e) {
+        showNotice(e instanceof Error ? e.message : "Couldn't release the machine.");
+      }
+      await refreshMachines();
+    });
 
   const handleSectionChange = (s: Section) => {
     if (s === "admin" && !isAdmin) return;
@@ -115,6 +114,13 @@ export default function App() {
 
   return (
     <div className="flex min-h-[100dvh] bg-[#f4f6f8]">
+      {notice && (
+        <div
+          role="alert"
+          className="fixed top-3 inset-x-4 sm:left-auto sm:right-4 sm:max-w-sm z-[70] rounded-2xl bg-red-600 text-white text-sm font-medium px-4 py-3 shadow-lg"
+          onClick={() => setNotice(null)}
+        >{notice}</div>
+      )}
       <Sidebar
         active={section}
         isAdmin={isAdmin}
