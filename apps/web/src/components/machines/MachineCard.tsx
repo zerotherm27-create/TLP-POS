@@ -305,7 +305,6 @@ export default function MachineCard({ machine, onSelect, tubCleaningDue, onMarkC
             </div>,
             document.body
           )}
-          )}
         </>
       )}
     </motion.div>
