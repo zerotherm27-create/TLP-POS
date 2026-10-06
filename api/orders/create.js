@@ -1,5 +1,6 @@
 import { createRequire } from "module";
 import { requireUser } from "../_auth.js";
+import { loadProducts } from "../_catalog.js";
 import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
 const require = createRequire(import.meta.url);
@@ -7,14 +8,6 @@ const crypto = require("crypto");
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const METHODS = ["cash", "gcash", "manual"];
-
-const loadProducts = async () => {
-  try {
-    const rows = await supabaseRequest("tlp_settings?key=eq.products&select=value&limit=1");
-    if (Array.isArray(rows?.[0]?.value)) return rows[0].value;
-  } catch {}
-  return require("../_products.json");
-};
 
 const nextOrderNumber = async () => {
   const rows = await supabaseRequest("tlp_job_orders?select=order_number&source=eq.tlp_pos&order=created_at.desc&limit=50");

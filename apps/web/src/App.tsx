@@ -72,6 +72,15 @@ export default function App() {
     }
   };
 
+  const handleAddService = async (orderId: string, productId: string) => {
+    try {
+      const data = await callApi("/api/orders/add-service", { orderId, productId });
+      updateOrder(data.jobOrder);
+    } catch (e) {
+      showNotice(e instanceof Error ? e.message : "Couldn't add the load.");
+    }
+  };
+
   const handleVoidOrder = async (orderId: string) => {
     try {
       const data = await callApi("/api/orders/void", { orderId });
@@ -118,6 +127,16 @@ export default function App() {
       await refreshMachines();
     });
   };
+
+  const handleFinishMachine = (machineId: string) =>
+    enqueue(async () => {
+      try {
+        await callApi("/api/machines/action", { machineId, action: "finish" });
+      } catch (e) {
+        showNotice(e instanceof Error ? e.message : "Couldn't finish the machine.");
+      }
+      await refreshMachines();
+    });
 
   const handleUnassign = (orderId: string, lineId: string, machineId: string, reason?: string, mode?: "rework" | "reassign") =>
     enqueue(async () => {
@@ -195,6 +214,8 @@ export default function App() {
                   onCloseCreate={() => setShowCreateOrder(false)}
                   onCreateOrder={handleCreateOrder}
                   onVoidOrder={handleVoidOrder}
+                  onAddService={handleAddService}
+                  onFinishMachine={handleFinishMachine}
                   onAssign={handleAssign}
                   onUnassign={handleUnassign}
                 />

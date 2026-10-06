@@ -121,6 +121,8 @@ function DetailPanel({
   onVoid,
   onAssign,
   onUnassign,
+  onAddService,
+  onFinishMachine,
 }: {
   order: JobOrder;
   products: Product[];
@@ -130,7 +132,22 @@ function DetailPanel({
   onVoid: (id: string) => void;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
+  onAddService?: (orderId: string, productId: string) => Promise<void>;
+  onFinishMachine?: (machineId: string) => Promise<void> | void;
 }) {
+  const [confirmFinish, setConfirmFinish] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+  const addLoad = async (productId: string) => {
+    if (!onAddService || addBusy) return;
+    setAddBusy(true);
+    try {
+      await onAddService(order.id, productId);
+      setAdding(false);
+    } finally {
+      setAddBusy(false);
+    }
+  };
   const [actionLine, setActionLine] = useState<{ lineId: string; machineId: string; productId: string; mode: "rework" | "reassign" } | null>(null);
   const [actionReason, setActionReason] = useState("");
   const stage = STAGES[order.fulfillmentStage] ?? STAGES.queued;
@@ -275,6 +292,43 @@ function DetailPanel({
                 <span className="text-sm font-bold text-zinc-900">{formatPeso(orderTotal)}</span>
               </div>
             )}
+            {isActive && onAddService && (
+              adding ? (
+                <div className="mt-2 rounded-xl border border-zinc-100 bg-zinc-50/60 p-3 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Add a load to this order</span>
+                    <button onClick={() => setAdding(false)} className="text-[11px] font-semibold text-zinc-400 hover:text-zinc-600">Cancel</button>
+                  </div>
+                  {(["dryer", "washer"] as const).map((kind) => (
+                    <div key={kind}>
+                      <div className="flex items-center gap-1.5 mb-1.5 text-[11px] text-zinc-500 font-medium capitalize">
+                        {kind === "washer" ? <WashingMachine size={11} strokeWidth={1.8} /> : <Wind size={11} strokeWidth={1.8} />}
+                        {kind}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {products.filter((p) => p.machineKind === kind && !p.isExtraTime).map((p) => (
+                          <button
+                            key={p.id}
+                            disabled={addBusy}
+                            onClick={() => addLoad(p.id)}
+                            className="h-8 px-3 rounded-xl border border-zinc-200 bg-white text-[12px] font-semibold text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa] disabled:opacity-50 transition-colors"
+                          >
+                            {p.name} <span className="font-normal text-zinc-400">· {formatPeso(p.priceCents)}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAdding(true)}
+                  className="mt-2 h-9 rounded-xl border border-dashed border-[#009eb5]/50 text-[12px] font-semibold text-[#007a8c] hover:bg-[#e0f6fa] transition-colors"
+                >
+                  + Add a dryer or washer load
+                </button>
+              )
+            )}
           </div>
         </div>
 
@@ -384,6 +438,42 @@ function DetailPanel({
           </div>
         )}
 
+        {/* Dryer loads waiting for the washer */}
+        {isActive && !washersDone && (() => {
+          const heldDryers = services.filter(({ line, product }) => product?.machineKind === "dryer" && !assignedLineIds.has(line.lineId));
+          if (heldDryers.length === 0) return null;
+          const runningWashers = washerAssignments
+            .map((a) => machines.find((m) => m.id === a.machineId))
+            .filter((m): m is Machine => !!m && m.status === "running");
+          return (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 flex flex-col gap-2">
+              <div className="text-[12px] font-semibold text-amber-800">
+                {heldDryers.length} dryer {heldDryers.length === 1 ? "load is" : "loads are"} waiting for the washer to finish
+              </div>
+              <div className="text-[11px] text-amber-700">
+                {runningWashers.map((m) => `${m.publicCode} ${m.startedAt ? "is washing" : "hasn't been started yet"}`).join(" · ")}.
+                The dryer unlocks by itself when the wash timer ends.
+              </div>
+              {onFinishMachine && (confirmFinish ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-amber-800">Washer finished?</span>
+                  <button
+                    onClick={async () => { setConfirmFinish(false); for (const m of runningWashers) await onFinishMachine(m.id); }}
+                    className="h-8 px-3 rounded-xl text-[11px] font-bold text-white"
+                    style={{ background: "#009eb5" }}
+                  >Yes, unlock dryer</button>
+                  <button onClick={() => setConfirmFinish(false)} className="h-8 px-3 rounded-xl text-[11px] font-semibold text-zinc-500 bg-white border border-zinc-200">No</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmFinish(true)}
+                  className="self-start h-8 px-3 rounded-xl text-[11px] font-bold text-amber-800 bg-white border border-amber-300 hover:bg-amber-100 transition-colors"
+                >Washer is done — unlock dryer</button>
+              ))}
+            </div>
+          );
+        })()}
+
         {/* Assign machine */}
         {canAssign && (
           <div>
@@ -481,11 +571,12 @@ interface Props {
   onCloseCreate?: () => void;
   onCreateOrder?: (payload: NewOrderPayload) => Promise<JobOrder>;
   onVoidOrder?: (orderId: string) => Promise<void>;
+  onAddService?: (orderId: string, productId: string) => Promise<void>;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
 }
 
-export default function OrdersSection({ orders: initialOrders, products, packages, machines, isAdmin, showCreate, onCloseCreate, onCreateOrder, onVoidOrder, onAssign, onUnassign }: Props) {
+export default function OrdersSection({ orders: initialOrders, products, packages, machines, isAdmin, showCreate, onCloseCreate, onCreateOrder, onVoidOrder, onAddService, onFinishMachine, onAssign, onUnassign }: Props) {
   const [orders, setOrders] = useState(initialOrders);
 
   useEffect(() => { setOrders(initialOrders); }, [initialOrders]);
@@ -643,6 +734,8 @@ export default function OrdersSection({ orders: initialOrders, products, package
               onVoid={handleVoid}
               onAssign={onAssign}
               onUnassign={onUnassign}
+              onAddService={onAddService}
+              onFinishMachine={onFinishMachine}
             />
           ) : (
             <motion.div
@@ -727,6 +820,8 @@ export default function OrdersSection({ orders: initialOrders, products, package
                 onVoid={handleVoid}
                 onAssign={onAssign}
                 onUnassign={onUnassign}
+              onAddService={onAddService}
+              onFinishMachine={onFinishMachine}
               />
             </motion.div>
           </>

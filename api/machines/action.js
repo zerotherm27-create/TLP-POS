@@ -1,5 +1,5 @@
 import { requireUser } from "../_auth.js";
-import { fromMachineRow } from "../_machines.js";
+import { freeMachinePatch, fromMachineRow } from "../_machines.js";
 import { ensurePost, readJson, sendJson, supabaseRequest } from "../_supabase.js";
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -10,8 +10,8 @@ export default async function handler(req, res) {
     if (!(await requireUser(req, res))) return; // staff and admin
 
     const { machineId, action } = await readJson(req);
-    if (!ID_RE.test(String(machineId ?? "")) || (action !== "start" && action !== "clean")) {
-      sendJson(res, 400, { ok: false, message: "A valid machineId and action (start | clean) are required." });
+    if (!ID_RE.test(String(machineId ?? "")) || (action !== "start" && action !== "clean" && action !== "finish")) {
+      sendJson(res, 400, { ok: false, message: "A valid machineId and action (start | clean | finish) are required." });
       return;
     }
     const id = encodeURIComponent(machineId);
@@ -24,7 +24,22 @@ export default async function handler(req, res) {
     }
 
     let patch;
-    if (action === "start") {
+    let guard = "";
+    if (action === "finish") {
+      // End the cycle early (e.g. the washer is done): free the machine so the dryer can be assigned.
+      if (machine.status !== "running") {
+        sendJson(res, 400, { ok: false, message: "This machine isn't running." });
+        return;
+      }
+      patch = freeMachinePatch();
+      if (machine.started_at) {
+        // A cycle that really ran counts toward the machine's totals.
+        const elapsed = Math.round((Date.now() - Date.parse(machine.started_at)) / 60000);
+        const ranMinutes = Math.max(0, Math.min(machine.remaining_minutes ?? 0, elapsed));
+        patch = { ...patch, cycle_count: machine.cycle_count + 1, total_run_minutes: machine.total_run_minutes + ranMinutes };
+      }
+      guard = "&status=eq.running"; // only applies if nobody else already finished it
+    } else if (action === "start") {
       if (machine.status !== "running" || machine.started_at) {
         sendJson(res, 400, { ok: false, message: "This machine has no waiting load to start." });
         return;
@@ -38,7 +53,7 @@ export default async function handler(req, res) {
       patch = { last_tub_clean_cycle: machine.cycle_count };
     }
 
-    const updated = await supabaseRequest(`tlp_machines?id=eq.${id}`, {
+    const updated = await supabaseRequest(`tlp_machines?id=eq.${id}${guard}`, {
       method: "PATCH",
       body: JSON.stringify(patch),
       headers: { Prefer: "return=representation" },
