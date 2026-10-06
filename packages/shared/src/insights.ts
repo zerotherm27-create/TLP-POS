@@ -50,6 +50,75 @@ export function rankMachines(machines: Machine[], kind: "washer" | "dryer", tubT
   return sorted.map((machine, i) => ({ machine, suggested: i === 0, tubDue: isTubDue(machine, tubThreshold) }));
 }
 
+/** "W3" -> "3", "D3" -> "3". Washers and dryers with the same number are a pair (W3 goes with D3). */
+export const machineNumber = (m: Machine) => m.publicCode.replace(/\D+/g, "");
+
+export interface WasherPair {
+  washer: Machine;
+  dryer?: Machine; // the dryer with the same number, if one exists
+  dryerFree: boolean; // that dryer is available right now
+  suggested: boolean;
+  tubDue: boolean;
+}
+
+/**
+ * Pick the washer and its matching dryer together (W1 with D1, never W1 with D2).
+ * Only free washers are listed. Washers whose partner dryer is also free come first,
+ * then washers not due for a tub clean, then the least-used washer, then the least-used dryer.
+ */
+export function rankWasherPairs(machines: Machine[], tubThreshold: number): WasherPair[] {
+  const dryers = machines.filter((m) => m.kind === "dryer");
+  const rows = machines
+    .filter((m) => m.kind === "washer" && m.status === "online")
+    .map((washer) => {
+      const dryer = dryers.find((d) => machineNumber(d) === machineNumber(washer));
+      return { washer, dryer, dryerFree: !!dryer && dryer.status === "online", tubDue: isTubDue(washer, tubThreshold) };
+    });
+  rows.sort((a, b) => {
+    if (a.dryerFree !== b.dryerFree) return a.dryerFree ? -1 : 1;
+    if (a.tubDue !== b.tubDue) return a.tubDue ? 1 : -1;
+    const wa = a.washer.cycleCount ?? 0, wb = b.washer.cycleCount ?? 0;
+    if (wa !== wb) return wa - wb;
+    const da = a.dryer?.totalRunMinutes ?? 0, db = b.dryer?.totalRunMinutes ?? 0;
+    if (da !== db) return da - db;
+    return byCode(a.washer, b.washer);
+  });
+  return rows.map((r, i) => ({ ...r, suggested: i === 0 }));
+}
+
+export interface DryerChoice {
+  machine: Machine;
+  suggested: boolean; // the dryer that pairs with this order's washer
+  pairOf?: string; // which washer it pairs with, e.g. "W3"
+}
+
+export interface DryerPlan {
+  choices: DryerChoice[];
+  pairCodes: string[]; // the matching dryer codes for this order's washers, e.g. ["D3"]
+  pairBusy: boolean; // the matching dryer exists but is not free, so nothing is suggested
+}
+
+/**
+ * Dryer options for an order whose washer(s) are `orderWashers`. Only the dryer with the same
+ * number as the washer is suggested; if it is busy nothing is suggested (no crossing to another dryer).
+ * With no washer on the order, falls back to the least-used dryer.
+ */
+export function planDryers(machines: Machine[], orderWashers: Machine[], tubThreshold: number): DryerPlan {
+  const free = machines.filter((m) => m.kind === "dryer" && m.status === "online");
+  if (orderWashers.length === 0) {
+    return { choices: rankMachines(machines, "dryer", tubThreshold).map((r) => ({ machine: r.machine, suggested: r.suggested })), pairCodes: [], pairBusy: false };
+  }
+  const numbers = new Map(orderWashers.map((w) => [machineNumber(w), w.publicCode]));
+  const pairCodes = machines.filter((m) => m.kind === "dryer" && numbers.has(machineNumber(m))).map((m) => m.publicCode);
+  const matching = free.filter((d) => numbers.has(machineNumber(d))).sort(byCode);
+  const rest = free.filter((d) => !numbers.has(machineNumber(d))).sort(byCode);
+  const choices: DryerChoice[] = [
+    ...matching.map((machine, i) => ({ machine, suggested: i === 0, pairOf: numbers.get(machineNumber(machine)) })),
+    ...rest.map((machine) => ({ machine, suggested: false })),
+  ];
+  return { choices, pairCodes, pairBusy: matching.length === 0 && pairCodes.length > 0 };
+}
+
 const minutesBetween = (fromIso: string, now: number) => Math.floor((now - Date.parse(fromIso)) / 60000);
 
 /** Everything that needs attention right now, most urgent first. */

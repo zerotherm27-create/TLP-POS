@@ -5,7 +5,7 @@ import {
   WashingMachine, Wind, X, ChevronRight, RotateCcw, ArrowLeftRight,
 } from "lucide-react";
 import type { JobOrder, Product, Machine, FulfillmentStage, ServicePackage } from "@tlp/shared";
-import { rankMachines } from "@tlp/shared";
+import { rankWasherPairs, planDryers } from "@tlp/shared";
 import JobOrderForm, { type NewOrderPayload } from "../overview/JobOrderForm";
 import { formatPeso, formatTime, formatDateTime } from "../../lib/format";
 
@@ -484,7 +484,35 @@ function DetailPanel({
             <div className="flex flex-col gap-3">
               {unassignedServices.map(({ line, product }) => {
                 if (!product) return null;
-                const available = rankMachines(machines, product.machineKind, tubCleanThreshold);
+                // Washer and dryer are chosen together: W1 pairs with D1, never W1 with D2.
+                type Chip = { machine: Machine; suggested: boolean; tubDue?: boolean; sub?: string; busyNote?: string };
+                let available: Chip[];
+                let hint: string | null = null;
+                if (product.machineKind === "washer") {
+                  const pairs = rankWasherPairs(machines, tubCleanThreshold);
+                  available = pairs.map((p) => ({
+                    machine: p.washer,
+                    suggested: p.suggested,
+                    tubDue: p.tubDue,
+                    sub: p.dryer && p.dryerFree ? `+ ${p.dryer.publicCode}` : undefined,
+                    busyNote: !p.dryer ? "no dryer pair" : !p.dryerFree ? `${p.dryer.publicCode} busy` : undefined,
+                  }));
+                  const top = pairs[0];
+                  if (top) {
+                    hint = top.dryerFree && top.dryer
+                      ? `Suggested pair: ${top.washer.publicCode} + ${top.dryer.publicCode}`
+                      : `No washer + dryer pair is free right now. ${top.washer.publicCode} is the best washer, but its dryer is busy.`;
+                  }
+                } else {
+                  const orderWashers = washerAssignments
+                    .map((a) => machines.find((m) => m.id === a.machineId))
+                    .filter((m): m is Machine => !!m);
+                  const plan = planDryers(machines, orderWashers, tubCleanThreshold);
+                  available = plan.choices.map((c) => ({ machine: c.machine, suggested: c.suggested, sub: c.pairOf ? `pairs with ${c.pairOf}` : undefined }));
+                  const pick = plan.choices.find((c) => c.suggested && c.pairOf);
+                  if (pick) hint = `Suggested: ${pick.machine.publicCode} (matches ${pick.pairOf})`;
+                  else if (plan.pairBusy) hint = `${plan.pairCodes.join(" / ")} (the matching dryer) is busy. Wait for it, or pick another.`;
+                }
                 const serviceIdx = services.findIndex((s) => s.line.lineId === line.lineId);
                 const loadNum = loadNumbers[serviceIdx];
                 return (
@@ -501,13 +529,14 @@ function DetailPanel({
                         {hasMultipleLoads && <span className="text-zinc-300 ml-1">· Load {loadNum}</span>}
                       </span>
                     </div>
+                    {hint && <p className="text-[11px] text-[#007a8c] mb-1.5 px-0.5">{hint}</p>}
                     {available.length === 0 ? (
                       <p className="text-[11px] text-zinc-300 px-1">
                         No available {product.machineKind}s
                       </p>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
-                        {available.map(({ machine: m, suggested, tubDue }) => (
+                        {available.map(({ machine: m, suggested, tubDue, sub, busyNote }) => (
                           <button
                             key={m.id}
                             onClick={() => onAssign(order.id, m.id, line.productId, line.lineId)}
@@ -519,9 +548,11 @@ function DetailPanel({
                           >
                             <span className="font-bold">{m.publicCode}</span>
                             <span className={suggested ? "font-normal text-[#009eb5]" : "text-zinc-400 font-normal"}>{m.name}</span>
+                            {sub && <span className="font-medium text-[#007a8c]">{sub}</span>}
                             {suggested && (
                               <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#007a8c] text-white">Suggested</span>
                             )}
+                            {busyNote && <span className="font-normal italic text-zinc-400">{busyNote}</span>}
                             {tubDue && (
                               <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Clean due</span>
                             )}

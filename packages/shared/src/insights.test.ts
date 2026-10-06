@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { Machine, JobOrder, Product } from "./index.js";
-import { rankMachines, computeAlerts, isTubDue } from "./insights.js";
+import { rankMachines, rankWasherPairs, planDryers, machineNumber, computeAlerts, isTubDue } from "./insights.js";
 
 const NOW = Date.parse("2026-10-07T10:00:00Z");
 const ago = (min: number) => new Date(NOW - min * 60000).toISOString();
@@ -111,4 +111,80 @@ test("alerts: offline for 2+ hours, sorted with warnings first", () => {
   const a = computeAlerts(ms, [], products, 50, NOW);
   assert.deepEqual(a.map((x) => x.kind), ["tub_due", "offline"]);
   assert.match(a[1].detail, /3 hours/);
+});
+
+const w = (n: number, over: Partial<Machine> = {}) => machine({ id: `w${n}`, kind: "washer", publicCode: `W${n}`, ...over });
+const d = (n: number, over: Partial<Machine> = {}) => machine({ id: `d${n}`, kind: "dryer", publicCode: `D${n}`, ...over });
+
+test("machineNumber pairs W3 with D3", () => {
+  assert.equal(machineNumber(w(3)), "3");
+  assert.equal(machineNumber(d(3)), "3");
+});
+
+test("washer pairs: only washers whose same-number dryer is free are suggested first", () => {
+  const ms = [
+    w(1, { cycleCount: 2 }), d(1, { status: "running" }), // best washer, but its dryer is busy
+    w(2, { cycleCount: 9 }), d(2),
+    w(3, { cycleCount: 5 }), d(3, { status: "offline" }),
+  ];
+  const r = rankWasherPairs(ms, 50);
+  assert.equal(r[0].washer.publicCode, "W2"); // W2 + D2 are both free
+  assert.equal(r[0].dryer?.publicCode, "D2");
+  assert.equal(r[0].dryerFree, true);
+  assert.equal(r[0].suggested, true);
+  assert.deepEqual(r.slice(1).map((x) => x.dryerFree), [false, false]);
+  assert.equal(r.filter((x) => x.suggested).length, 1);
+});
+
+test("washer pairs: among free pairs, skip tub-due washers, then least used", () => {
+  const ms = [
+    w(1, { cycleCount: 60, lastTubCleanCycle: 0 }), d(1),
+    w(2, { cycleCount: 20 }), d(2, { totalRunMinutes: 500 }),
+    w(3, { cycleCount: 20 }), d(3, { totalRunMinutes: 100 }),
+  ];
+  const r = rankWasherPairs(ms, 50);
+  assert.deepEqual(r.map((x) => x.washer.publicCode), ["W3", "W2", "W1"]); // tie on washer cycles -> less used dryer
+  assert.equal(r[2].tubDue, true);
+});
+
+test("washer pairs: a washer with no matching dryer is never treated as a free pair", () => {
+  const r = rankWasherPairs([w(7)], 50);
+  assert.equal(r[0].dryer, undefined);
+  assert.equal(r[0].dryerFree, false);
+});
+
+test("dryer plan: suggests only the dryer that matches the order's washer (no crossing)", () => {
+  const ms = [w(3, { status: "running" }), d(1, { totalRunMinutes: 0 }), d(2, { totalRunMinutes: 0 }), d(3, { totalRunMinutes: 900 })];
+  const plan = planDryers(ms, [ms[0]], 50);
+  assert.equal(plan.choices[0].machine.publicCode, "D3"); // matching dryer first even though it is the most used
+  assert.equal(plan.choices[0].suggested, true);
+  assert.equal(plan.choices[0].pairOf, "W3");
+  assert.equal(plan.choices.filter((c) => c.suggested).length, 1);
+  assert.deepEqual(plan.pairCodes, ["D3"]);
+  assert.equal(plan.pairBusy, false);
+});
+
+test("dryer plan: when the matching dryer is busy, nothing is suggested", () => {
+  const ms = [w(3, { status: "running" }), d(1), d(2), d(3, { status: "running" })];
+  const plan = planDryers(ms, [ms[0]], 50);
+  assert.equal(plan.pairBusy, true);
+  assert.equal(plan.choices.some((c) => c.suggested), false);
+  assert.deepEqual(plan.choices.map((c) => c.machine.publicCode), ["D1", "D2"]);
+});
+
+test("dryer plan: no washer on the order falls back to the least-used dryer", () => {
+  const ms = [d(1, { totalRunMinutes: 300 }), d(2, { totalRunMinutes: 100 })];
+  const plan = planDryers(ms, [], 50);
+  assert.equal(plan.choices[0].machine.publicCode, "D2");
+  assert.equal(plan.choices[0].suggested, true);
+  assert.equal(plan.pairBusy, false);
+});
+
+test("dryer plan: two washers on one order suggest their own two dryers", () => {
+  const ms = [w(1, { status: "running" }), w(2, { status: "running" }), d(1), d(2), d(3)];
+  const plan = planDryers(ms, [ms[0], ms[1]], 50);
+  assert.deepEqual(plan.choices.slice(0, 2).map((c) => c.machine.publicCode), ["D1", "D2"]);
+  assert.equal(plan.choices[0].suggested, true);
+  assert.equal(plan.choices[1].suggested, false); // one suggestion at a time; after D1 is used D2 becomes the suggestion
+  assert.deepEqual(plan.pairCodes, ["D1", "D2"]);
 });
