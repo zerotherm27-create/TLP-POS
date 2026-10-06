@@ -188,6 +188,9 @@ function DetailPanel({
     (a) => machines.find((m) => m.id === a.machineId)?.status === "running"
   );
   const washersDone = washerAssignments.length === 0 || !anyWasherRunning;
+  // A washer load that hasn't been given a machine yet: its dryer is chosen after it (the washer list already suggests the pair).
+  const washerUnassigned = services.some(({ line, product }) => product?.machineKind === "washer" && !assignedLineIds.has(line.lineId));
+  const dryersHeld = !washersDone || washerUnassigned;
 
   // Each load has a machine size: regular, or large (the bigger W5 + D5). Offer only that size unless overridden.
   const machineTier = (m: Machine) => (m.tier === "titan" ? "titan" : "giant");
@@ -199,7 +202,7 @@ function DetailPanel({
   const unassignedServices = services.filter(({ line, product }) => {
     if (assignedLineIds.has(line.lineId)) return false;
     // Hold dryer assignment until all washers are done
-    if (product?.machineKind === "dryer" && !washersDone) return false;
+    if (product?.machineKind === "dryer" && dryersHeld) return false;
     return true;
   });
   const canAssign = isActive && unassignedServices.length > 0 && onAssign;
@@ -513,7 +516,7 @@ function DetailPanel({
         )}
 
         {/* Dryer loads waiting for the washer */}
-        {isActive && !washersDone && (() => {
+        {isActive && dryersHeld && (() => {
           const heldDryers = services.filter(({ line, product }) => product?.machineKind === "dryer" && !assignedLineIds.has(line.lineId));
           if (heldDryers.length === 0) return null;
           const runningWashers = washerAssignments
@@ -522,13 +525,15 @@ function DetailPanel({
           return (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 flex flex-col gap-2">
               <div className="text-[12px] font-semibold text-amber-800">
-                {heldDryers.length} dryer {heldDryers.length === 1 ? "load is" : "loads are"} waiting for the washer to finish
+                {heldDryers.length} dryer {heldDryers.length === 1 ? "load is" : "loads are"} {washerUnassigned ? "chosen after the washer" : "waiting for the washer to finish"}
               </div>
               <div className="text-[11px] text-amber-700">
-                {runningWashers.map((m) => `${m.publicCode} ${m.startedAt ? "is washing" : "hasn't been started yet"}`).join(" · ")}.
-                The dryer unlocks by itself when the wash timer ends.
+                {washerUnassigned
+                  ? "Pick the washer above first. Its matching dryer (for example W2 + D2) is suggested with it, and the dryer unlocks when the wash ends."
+                  : <>{runningWashers.map((m) => `${m.publicCode} ${m.startedAt ? "is washing" : "hasn't been started yet"}`).join(" · ")}.
+                The dryer unlocks by itself when the wash timer ends.</>}
               </div>
-              {onFinishMachine && (confirmFinish ? (
+              {onFinishMachine && runningWashers.length > 0 && (confirmFinish ? (
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-semibold text-amber-800">Washer finished?</span>
                   <button
