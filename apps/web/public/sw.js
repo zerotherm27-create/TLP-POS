@@ -1,7 +1,7 @@
 // Minimal service worker: makes the app installable and gives an offline shell.
 // Never caches /api/* or auth calls — live data and sign-in always hit the network.
-const CACHE = "laundrodesk-v3";
-const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png?v=3", "/logo.png"];
+const CACHE = "laundrodesk-v4";
+const SHELL = ["/", "/manifest.webmanifest", "/icon-192.png?v=4", "/logo.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
