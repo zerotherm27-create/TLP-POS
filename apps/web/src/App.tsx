@@ -134,6 +134,7 @@ export default function App() {
           section={section}
           isAdmin={isAdmin}
           onNewOrder={() => { setSection("orders"); setShowCreateOrder(true); }}
+          onToggleRole={() => isAdmin ? demote() : setPinOpen(true)}
           onSyncLaundrobot={isAdmin ? async () => {
             const res = await fetch("/api/orders/pull", { method: "POST" });
             if (!res.ok) throw new Error(`sync failed: ${res.status}`);
@@ -157,6 +158,7 @@ export default function App() {
                   products={products}
                   packages={packages}
                   isAdmin={isAdmin}
+                  threshold={tubCleanThreshold}
                 />
               )}
               {section === "orders" && (
@@ -179,6 +181,7 @@ export default function App() {
                   threshold={tubCleanThreshold}
                   onMarkCleaned={handleMarkCleaned}
                   orders={orders}
+                  products={products}
                   onUnassign={handleUnassign}
                   onAssign={handleAssign}
                   onStartMachine={handleStartMachine}

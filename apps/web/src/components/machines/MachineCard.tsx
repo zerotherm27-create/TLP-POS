@@ -267,15 +267,21 @@ export default function MachineCard({ machine, onSelect, tubCleaningDue, onMarkC
             style={{ boxShadow: "inset 0 0 0 2px #f59e0b" }}
           />
           {confirming ? (
-            <div className="absolute top-1.5 right-1.5 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-              <button
-                onClick={() => { onMarkCleaned?.(machine.id); setConfirming(false); }}
-                className="h-5 px-1.5 rounded-full text-[8px] font-bold bg-amber-500 text-white border border-amber-600"
-              >Yes</button>
-              <button
-                onClick={() => setConfirming(false)}
-                className="h-5 px-1.5 rounded-full text-[8px] font-bold bg-white text-zinc-500 border border-zinc-200"
-              >No</button>
+            <div
+              className="absolute inset-0 rounded-2xl bg-white/95 flex flex-col items-center justify-center gap-1 p-1 text-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-[8px] sm:text-[10px] font-bold text-amber-700 leading-tight">Tub clean done?</div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { onMarkCleaned?.(machine.id); setConfirming(false); }}
+                  className="h-5 px-1.5 rounded-full text-[8px] font-bold bg-amber-500 text-white border border-amber-600"
+                >Yes</button>
+                <button
+                  onClick={() => setConfirming(false)}
+                  className="h-5 px-1.5 rounded-full text-[8px] font-bold bg-white text-zinc-500 border border-zinc-200"
+                >No</button>
+              </div>
             </div>
           ) : (
             <motion.button

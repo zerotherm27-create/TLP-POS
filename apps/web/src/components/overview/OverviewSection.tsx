@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { WashingMachine, Wind } from "lucide-react";
 import MetricsGrid from "./MetricsGrid";
 import JobQueue from "./JobQueue";
+import MachineDetailSheet from "../machines/MachineDetailSheet";
 import type { Machine, JobOrder, Sale, Product, ServicePackage } from "@tlp/shared";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
   products: Product[];
   packages: ServicePackage[];
   isAdmin: boolean;
+  threshold?: number;
 }
 
 /* ── Mini countdown ── */
@@ -248,13 +250,22 @@ function MiniOffline({ machine }: { machine: Machine }) {
 }
 
 /* ── Mini machine tile dispatcher ── */
-function MachineTile({ machine }: { machine: Machine }) {
-  if (machine.status === "running") return <MiniRunning machine={machine} />;
-  if (machine.status === "online")  return <MiniOnline machine={machine} />;
-  return <MiniOffline machine={machine} />;
+function MachineTile({ machine, onSelect }: { machine: Machine; onSelect: (m: Machine) => void }) {
+  const tile =
+    machine.status === "running" ? <MiniRunning machine={machine} /> :
+    machine.status === "online"  ? <MiniOnline machine={machine} /> :
+                                   <MiniOffline machine={machine} />;
+  return (
+    <motion.div whileTap={{ scale: 0.97 }} onClick={() => onSelect(machine)} className="h-full cursor-pointer">
+      {tile}
+    </motion.div>
+  );
 }
 
-export default function OverviewSection({ machines, orders, sales, products, isAdmin }: Props) {
+export default function OverviewSection({ machines, orders, sales, products, isAdmin, threshold }: Props) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = machines.find((m) => m.id === selectedId) ?? null;
+  const selectedOrder = selected?.activeJobOrderId ? orders.find((o) => o.id === selected.activeJobOrderId) ?? null : null;
   const openOrders = orders.filter((o) => o.status !== "completed" && o.status !== "voided").length;
   const washers = machines.filter((m) => m.kind === "washer");
   const dryers  = machines.filter((m) => m.kind === "dryer");
@@ -272,19 +283,31 @@ export default function OverviewSection({ machines, orders, sales, products, isA
           <div>
             <div className="text-[9px] font-semibold text-zinc-300 uppercase tracking-widest mb-2">Washers</div>
             <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-              {washers.map((m) => <MachineTile key={m.id} machine={m} />)}
+              {washers.map((m) => <MachineTile key={m.id} machine={m} onSelect={(x) => setSelectedId(x.id)} />)}
             </div>
           </div>
           <div>
             <div className="text-[9px] font-semibold text-zinc-300 uppercase tracking-widest mb-2">Dryers</div>
             <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-              {dryers.map((m) => <MachineTile key={m.id} machine={m} />)}
+              {dryers.map((m) => <MachineTile key={m.id} machine={m} onSelect={(x) => setSelectedId(x.id)} />)}
             </div>
           </div>
         </div>
       </div>
 
       <JobQueue orders={orders} products={products} />
+
+      <AnimatePresence>
+        {selected && (
+          <MachineDetailSheet
+            machine={selected}
+            order={selectedOrder}
+            products={products}
+            threshold={threshold}
+            onClose={() => setSelectedId(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

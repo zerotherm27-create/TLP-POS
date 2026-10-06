@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MachineCard from "./MachineCard";
-import type { Machine, JobOrder } from "@tlp/shared";
-import { WashingMachine, Wind, Zap, CheckCircle2, WifiOff, AlertTriangle, X, RotateCcw, ArrowLeftRight, Play } from "lucide-react";
+import MachineDetailSheet from "./MachineDetailSheet";
+import type { Machine, JobOrder, Product } from "@tlp/shared";
+import { WashingMachine, Wind, Zap, CheckCircle2, WifiOff, AlertTriangle, RotateCcw, ArrowLeftRight, Play } from "lucide-react";
 
 /* ── Stat chip ── */
 function StatChip({
@@ -47,12 +48,13 @@ interface Props {
   threshold?: number;
   onMarkCleaned?: (machineId: string) => void;
   orders?: JobOrder[];
+  products?: Product[];
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
   onStartMachine?: (machineId: string) => void;
 }
 
-export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, onUnassign, onAssign, onStartMachine }: Props) {
+export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, products, onUnassign, onAssign, onStartMachine }: Props) {
   const [activeMachine, setActiveMachine] = useState<Machine | null>(null);
   const [sheetReason, setSheetReason] = useState("");
 
@@ -69,10 +71,8 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
   const dueCount = machines.filter(isDue).length;
 
   const handleCardSelect = (m: Machine) => {
-    if (m.status === "running" && (onStartMachine || (orders && onUnassign && onAssign))) {
-      setActiveMachine(m);
-      setSheetReason("");
-    }
+    setActiveMachine(m);
+    setSheetReason("");
   };
 
   const closeSheet = () => {
@@ -99,7 +99,7 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
         machine={m}
         tubCleaningDue={isDue(m)}
         onMarkCleaned={onMarkCleaned}
-        onSelect={m.status === "running" ? handleCardSelect : undefined}
+        onSelect={handleCardSelect}
       />
     </motion.div>
   );
@@ -170,45 +170,18 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
         </div>
       </div>
 
-      {/* ── Action sheet overlay (machine card tap) ── */}
+      {/* ── Machine detail sheet (card tap) ── */}
       <AnimatePresence>
-        {activeMachine && (activeOrder || onStartMachine) && (
-          <>
-            <motion.div
-              key="sheet-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeSheet}
-              className="fixed inset-0 bg-black/30 z-40"
-            />
-            <motion.div
-              key="sheet"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 340, damping: 32 }}
-              className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white overflow-hidden"
-              style={{ maxHeight: "75dvh" }}
-            >
-              {/* Sheet header */}
-              <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-zinc-100">
-                <div>
-                  <div className="text-sm font-bold text-zinc-900">{activeMachine.name}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-lg">{activeMachine.publicCode}</span>
-                    {activeOrder && <span className="text-[11px] text-zinc-400">{activeOrder.customerName}</span>}
-                  </div>
-                </div>
-                <button
-                  onClick={closeSheet}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center text-zinc-300 hover:text-zinc-500 hover:bg-zinc-50 transition-colors"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-
-              <div className="px-5 py-4 flex flex-col gap-4 overflow-y-auto">
+        {activeMachine && (
+          <MachineDetailSheet
+            machine={activeMachine}
+            order={activeOrder}
+            products={products}
+            threshold={threshold}
+            onClose={closeSheet}
+          >
+            {activeMachine.status === "running" && (
+              <>
                 {/* Start Timer — shown only when machine not yet physically activated */}
                 {!activeMachine.startedAt && onStartMachine && (
                   <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-4">
@@ -241,8 +214,7 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
                         value={sheetReason}
                         onChange={(e) => setSheetReason(e.target.value)}
                         placeholder="Describe why this machine needs rework or reassignment…"
-                        autoFocus={!!activeMachine.startedAt}
-                        className="w-full h-9 px-3 text-sm rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
+                                                className="w-full h-9 px-3 text-sm rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-700 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
                       />
                     </div>
 
@@ -307,9 +279,9 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
                     </div>
                   </>
                 )}
-              </div>
-            </motion.div>
-          </>
+              </>
+            )}
+          </MachineDetailSheet>
         )}
       </AnimatePresence>
     </div>

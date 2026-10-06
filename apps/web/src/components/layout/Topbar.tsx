@@ -16,10 +16,11 @@ interface Props {
   section: Section;
   isAdmin: boolean;
   onNewOrder: () => void;
+  onToggleRole: () => void;
   onSyncLaundrobot?: () => Promise<void>;
 }
 
-export default function Topbar({ section, isAdmin, onNewOrder, onSyncLaundrobot }: Props) {
+export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onSyncLaundrobot }: Props) {
   const { title, subtitle } = SECTION_META[section];
   const [sync, setSync] = useState<SyncState>("idle");
 
@@ -49,6 +50,17 @@ export default function Topbar({ section, isAdmin, onNewOrder, onSyncLaundrobot 
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0 ml-4">
+        {/* Role switch — mobile only (desktop uses the sidebar) */}
+        <button
+          onClick={onToggleRole}
+          className="md:hidden h-8 flex items-center gap-1.5 pl-1.5 pr-2.5 text-[11px] font-semibold border border-zinc-200 rounded-xl text-zinc-600 active:scale-[0.97] transition-all"
+        >
+          <span
+            className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+            style={{ background: isAdmin ? "#009eb5" : "#4a6d73" }}
+          >{isAdmin ? "A" : "S"}</span>
+          {isAdmin ? "Admin" : "Staff"}
+        </button>
         {isAdmin && onSyncLaundrobot && (
           <button
             onClick={handleSync}
