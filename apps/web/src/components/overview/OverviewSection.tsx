@@ -62,7 +62,7 @@ function MiniWind() {
 function TierBadge({ tier }: { tier: "giant" | "titan" }) {
   return (
     <span
-      className="text-[7px] font-bold uppercase tracking-wider px-1 py-0.5 rounded-full"
+      className="hidden sm:inline text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0"
       style={tier === "titan"
         ? { background: "rgba(255,214,0,0.22)", color: "#ffe87e" }
         : { background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.55)" }
@@ -74,7 +74,7 @@ function TierBadge({ tier }: { tier: "giant" | "titan" }) {
 function TierBadgeLight({ tier }: { tier: "giant" | "titan" }) {
   return (
     <span
-      className="text-[7px] font-bold uppercase tracking-wider px-1 py-0.5 rounded-full"
+      className="hidden sm:inline text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full shrink-0"
       style={tier === "titan"
         ? { background: "#fefce8", color: "#92400e" }
         : { background: "#f4f4f5", color: "#71717a" }
@@ -122,16 +122,16 @@ function MiniRunning({ machine }: { machine: Machine }) {
       />
 
       {/* Header */}
-      <div className="flex items-center justify-between px-1.5 pt-1.5 pb-0 sm:px-2.5 sm:pt-2.5">
-        <span className="text-[8px] sm:text-[10px] font-bold text-white/60 tracking-widest uppercase leading-none">{machine.publicCode}</span>
+      <div className="flex items-center justify-between px-2 pt-2 pb-0 sm:px-2.5 sm:pt-2.5">
+        <span className="text-[9px] sm:text-[10px] font-bold text-white/60 tracking-widest uppercase">{machine.publicCode}</span>
         {machine.tier && <TierBadge tier={machine.tier} />}
       </div>
 
       {/* Center */}
-      <div className="flex-1 flex flex-col items-center justify-center py-1.5 sm:py-3">
+      <div className="flex-1 flex flex-col items-center justify-center py-2 sm:py-3">
         {started ? (
           <>
-            <div className="relative w-8 h-8 sm:w-11 sm:h-11">
+            <div className="relative w-9 h-9 sm:w-11 sm:h-11">
               <svg width="100%" height="100%" viewBox="0 0 44 44" className="-rotate-90">
                 <circle cx="22" cy="22" r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
                 <motion.circle
@@ -148,7 +148,7 @@ function MiniRunning({ machine }: { machine: Machine }) {
               </div>
             </div>
             {countdown && (
-              <span className="text-white/80 text-[8px] sm:text-[10px] font-bold tabular-nums tracking-wider mt-1">{countdown}</span>
+              <span className="text-white/80 text-[9px] sm:text-[10px] font-bold tabular-nums tracking-wider mt-1 sm:mt-1.5">{countdown}</span>
             )}
           </>
         ) : (
@@ -157,18 +157,18 @@ function MiniRunning({ machine }: { machine: Machine }) {
             transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
             className="flex flex-col items-center gap-1"
           >
-            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.12)" }}>
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.12)" }}>
               {machine.kind === "washer" ? <MiniWhirl /> : <MiniWind />}
             </div>
-            <span className="text-white/45 text-[7px] sm:text-[9px] font-semibold uppercase tracking-widest">Pending</span>
+            <span className="text-white/45 text-[8px] sm:text-[9px] font-semibold uppercase tracking-widest">Pending</span>
           </motion.div>
         )}
       </div>
 
       {/* Customer */}
-      <div className="px-1.5 pb-1.5 sm:px-2.5 sm:pb-2.5">
-        <div className="h-px bg-white/10 mb-1 sm:mb-2" />
-        <div className="text-white text-[8px] sm:text-[10px] font-semibold truncate">{machine.customerName ?? machine.name}</div>
+      <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">
+        <div className="h-px bg-white/10 mb-1.5 sm:mb-2" />
+        <div className="text-white text-[9px] sm:text-[10px] font-semibold truncate">{machine.customerName ?? machine.name}</div>
       </div>
     </motion.div>
   );
@@ -185,23 +185,23 @@ function MiniOnline({ machine }: { machine: Machine }) {
       className="rounded-2xl bg-white border border-zinc-100 flex flex-col overflow-hidden h-full"
       style={{ boxShadow: "0 2px 8px -4px rgba(0,0,0,0.06)" }}
     >
-      <div className="flex items-center justify-between px-1.5 pt-1.5 pb-0 sm:px-2.5 sm:pt-2.5">
-        <span className="text-[8px] sm:text-[10px] font-bold text-zinc-400 tracking-widest uppercase leading-none">{machine.publicCode}</span>
+      <div className="flex items-center justify-between px-2 pt-2 pb-0 sm:px-2.5 sm:pt-2.5">
+        <span className="text-[9px] sm:text-[10px] font-bold text-zinc-400 tracking-widest uppercase">{machine.publicCode}</span>
         {machine.tier && <TierBadgeLight tier={machine.tier} />}
       </div>
-      <div className="flex-1 flex items-center justify-center py-1.5 sm:py-3">
-        <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "#e0f6fa" }}>
+      <div className="flex-1 flex items-center justify-center py-2 sm:py-3">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center" style={{ background: "#e0f6fa" }}>
           {machine.kind === "washer"
-            ? <WashingMachine size={14} strokeWidth={1.5} style={{ color: "#009eb5" }} />
-            : <Wind size={14} strokeWidth={1.5} style={{ color: "#009eb5" }} />}
+            ? <WashingMachine size={16} strokeWidth={1.5} style={{ color: "#009eb5" }} />
+            : <Wind size={16} strokeWidth={1.5} style={{ color: "#009eb5" }} />}
         </div>
       </div>
-      <div className="px-1.5 pb-1.5 sm:px-2.5 sm:pb-2.5">
-        <div className="h-px bg-zinc-100 mb-1 sm:mb-2" />
-        <div className="text-[8px] sm:text-[10px] font-semibold text-zinc-700 truncate">{machine.name}</div>
-        <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
-          <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-emerald-400 shrink-0" />
-          <span className="text-[7px] sm:text-[9px] text-emerald-600 font-medium">Available</span>
+      <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">
+        <div className="h-px bg-zinc-100 mb-1.5 sm:mb-2" />
+        <div className="text-[9px] sm:text-[10px] font-semibold text-zinc-700 truncate">{machine.name}</div>
+        <div className="flex items-center gap-1 mt-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+          <span className="text-[8px] sm:text-[9px] text-emerald-600 font-medium">Available</span>
         </div>
       </div>
     </motion.div>
@@ -220,25 +220,25 @@ function MiniOffline({ machine }: { machine: Machine }) {
       animate={{ opacity: 1 }}
       className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 flex flex-col overflow-hidden h-full"
     >
-      <div className="flex items-center justify-between px-1.5 pt-1.5 pb-0 sm:px-2.5 sm:pt-2.5">
-        <span className="text-[8px] sm:text-[10px] font-bold text-zinc-300 tracking-widest uppercase leading-none">{machine.publicCode}</span>
+      <div className="flex items-center justify-between px-2 pt-2 pb-0 sm:px-2.5 sm:pt-2.5">
+        <span className="text-[9px] sm:text-[10px] font-bold text-zinc-300 tracking-widest uppercase">{machine.publicCode}</span>
         {machine.tier && (
-          <span className="text-[7px] font-bold uppercase tracking-wider px-1 py-0.5 rounded-full bg-zinc-100 text-zinc-400">{machine.tier}</span>
+          <span className="hidden sm:inline text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-zinc-100 text-zinc-400 shrink-0">{machine.tier}</span>
         )}
       </div>
-      <div className="flex-1 flex items-center justify-center py-1.5 sm:py-3">
-        <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-zinc-100 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center py-2 sm:py-3">
+        <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-zinc-100 flex items-center justify-center">
           {machine.kind === "washer"
-            ? <WashingMachine size={14} strokeWidth={1.5} className="text-zinc-300" />
-            : <Wind size={14} strokeWidth={1.5} className="text-zinc-300" />}
+            ? <WashingMachine size={16} strokeWidth={1.5} className="text-zinc-300" />
+            : <Wind size={16} strokeWidth={1.5} className="text-zinc-300" />}
         </div>
       </div>
-      <div className="px-1.5 pb-1.5 sm:px-2.5 sm:pb-2.5">
-        <div className="h-px bg-zinc-200 mb-1 sm:mb-2" />
-        <div className="text-[8px] sm:text-[10px] font-semibold text-zinc-400 truncate">{machine.name}</div>
-        <div className="flex items-center gap-1 mt-0.5 sm:mt-1">
-          <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-zinc-300 shrink-0" />
-          <span className="text-[7px] sm:text-[9px] text-zinc-400 font-medium">
+      <div className="px-2 pb-2 sm:px-2.5 sm:pb-2.5">
+        <div className="h-px bg-zinc-200 mb-1.5 sm:mb-2" />
+        <div className="text-[9px] sm:text-[10px] font-semibold text-zinc-400 truncate">{machine.name}</div>
+        <div className="flex items-center gap-1 mt-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 shrink-0" />
+          <span className="text-[8px] sm:text-[9px] text-zinc-400 font-medium">
             {mins !== null ? `${mins}m ago` : "Offline"}
           </span>
         </div>
@@ -264,20 +264,20 @@ export default function OverviewSection({ machines, orders, sales, products, isA
       <MetricsGrid machines={machines} sales={sales} openOrders={openOrders} isAdmin={isAdmin} />
 
       {/* Compact machine status grid */}
-      <div className="bg-white rounded-2xl border border-zinc-100 p-4"
+      <div className="bg-white rounded-2xl border border-zinc-100 p-2 sm:p-4"
         style={{ boxShadow: "0 2px 8px -4px rgba(0,0,0,0.05)" }}
       >
         <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Machine Status</div>
         <div className="flex flex-col gap-3">
           <div>
             <div className="text-[9px] font-semibold text-zinc-300 uppercase tracking-widest mb-2">Washers</div>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
               {washers.map((m) => <MachineTile key={m.id} machine={m} />)}
             </div>
           </div>
           <div>
             <div className="text-[9px] font-semibold text-zinc-300 uppercase tracking-widest mb-2">Dryers</div>
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
               {dryers.map((m) => <MachineTile key={m.id} machine={m} />)}
             </div>
           </div>
