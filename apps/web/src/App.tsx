@@ -260,9 +260,9 @@ export default function App() {
                   isAdmin={isAdmin}
                   tubCleanThreshold={tubCleanThreshold}
                   extraRates={extraRates}
-                  showCreate={showCreateOrder}
+                  showCreate={isAdmin && showCreateOrder}
                   onCloseCreate={() => setShowCreateOrder(false)}
-                  onCreateOrder={handleCreateOrder}
+                  onCreateOrder={isAdmin ? handleCreateOrder : undefined}
                   onVoidOrder={handleVoidOrder}
                   onAddService={handleAddService}
                   onAddExtra={handleAddExtra}

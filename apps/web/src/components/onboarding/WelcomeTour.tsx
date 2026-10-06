@@ -26,14 +26,21 @@ const STEPS: Step[] = [
   },
   {
     Icon: ClipboardList,
-    title: "Take an order",
-    body: "Go to Job Orders and tap New Job Order. Everything is sold as a package: a wash followed by a dry.",
-    tips: ["Pick the package", "Switch to Large for big bags", "Add extra wash time if asked, choose how they paid, then save"],
+    title: "Job Orders",
+    body: "Every customer order, walk-ins included, is booked in LaundroBot and shows up here by itself once it is paid. Each bag is a wash followed by a dry.",
+    tips: ["Open an order to see its loads, size and price", "Large bags go to the large machines"],
+  },
+  {
+    Icon: ClipboardList,
+    title: "Test orders",
+    body: "Admins can tap New Job Order to create an order by hand, for example to test the machines without LaundroBot.",
+    tips: ["Pick a package and the machine size", "Add extra wash time if needed, choose how it was paid, then save"],
+    adminOnly: true,
   },
   {
     Icon: ArrowLeftRight,
     title: "Assign machines",
-    body: "Open the order and tap the suggested pair, like W2 + D2. A washer always goes with the dryer of the same number.",
+    body: "Open an order and tap the suggested pair, like W2 + D2. A washer always goes with the dryer of the same number.",
     tips: ["Pick the washer first. The dryer unlocks when the wash ends", "Large loads use W5 + D5", "Need extra minutes? Add them on the same machine"],
   },
   {
@@ -52,7 +59,7 @@ const STEPS: Step[] = [
   {
     Icon: CheckCircle2,
     title: "You are ready",
-    body: "Start with the Machines tab to see the floor, or tap New Job Order when a customer walks in.",
+    body: "Start with the Machines tab to see the floor, or open Job Orders to assign machines to an order that just arrived.",
     tips: ["Sign out when you hand over the device"],
   },
 ];

@@ -21,7 +21,7 @@ const nextOrderNumber = async () => {
 export default async function handler(req, res) {
   try {
     if (!ensurePost(req, res)) return;
-    if (!(await requireUser(req, res))) return; // staff and admin
+    if (!(await requireUser(req, res, { adminOnly: true }))) return; // orders come from LaundroBot; only admins add one by hand (for testing)
 
     const body = await readJson(req);
     const customerName = typeof body.customerName === "string" ? body.customerName.trim() : "";

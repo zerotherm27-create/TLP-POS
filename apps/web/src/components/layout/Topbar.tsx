@@ -56,7 +56,7 @@ export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onS
             <CircleHelp size={14} strokeWidth={2} />
           </button>
         )}
-        {section === "orders" && (
+        {section === "orders" && isAdmin && (
           <button
             onClick={onNewOrder}
             className="h-8 flex items-center gap-1.5 px-3.5 text-[11px] font-bold text-white rounded-xl active:scale-[0.97] transition-all"
