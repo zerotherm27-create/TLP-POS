@@ -70,6 +70,7 @@ function RunningCard({ machine }: { machine: Machine }) {
       transition={{ type: "spring", stiffness: 300, damping: 26 }}
       className="relative rounded-2xl overflow-hidden flex flex-col"
       style={{
+        aspectRatio: "3/4",
         background: "linear-gradient(145deg, #006a7e 0%, #009eb5 55%, #00bcd4 100%)",
         boxShadow: "0 8px 24px -8px rgba(0,158,181,0.5), 0 2px 6px -2px rgba(0,0,0,0.12)",
       }}
@@ -156,7 +157,7 @@ function OnlineCard({ machine }: { machine: Machine }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: "spring", stiffness: 280, damping: 28 }}
       className="rounded-2xl bg-white border border-zinc-100 flex flex-col overflow-hidden"
-      style={{ boxShadow: "0 2px 10px -4px rgba(0,0,0,0.06)" }}
+      style={{ aspectRatio: "3/4", boxShadow: "0 2px 10px -4px rgba(0,0,0,0.06)" }}
     >
       <div className="flex items-center justify-between px-3 pt-3 pb-0">
         <span className="text-[11px] font-bold text-zinc-400 tracking-widest uppercase">{machine.publicCode}</span>
@@ -199,6 +200,7 @@ function OfflineCard({ machine }: { machine: Machine }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 flex flex-col overflow-hidden"
+      style={{ aspectRatio: "3/4" }}
     >
       <div className="flex items-center justify-between px-3 pt-3 pb-0">
         <span className="text-[11px] font-bold text-zinc-300 tracking-widest uppercase">{machine.publicCode}</span>
