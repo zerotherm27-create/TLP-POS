@@ -1,6 +1,6 @@
 import { requireUser } from "../_auth.js";
 import { freeMachinePatch } from "../_machines.js";
-import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
+import { changeOrder, ensurePost, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const UUID_RE = /^[0-9a-f-]{36}$/;
@@ -18,25 +18,22 @@ export default async function handler(req, res) {
     }
 
     const safeOrderId = encodeURIComponent(orderId);
-    const rows = await supabaseRequest(`tlp_job_orders?id=eq.${safeOrderId}&limit=1`);
-    if (!rows?.length) {
+    const now = new Date().toISOString();
+    const saved = await changeOrder(safeOrderId, (order) => {
+      const remaining = order.assignments.filter((a) => !(a.lineId === lineId && a.machineId === machineId));
+      order.assignments = remaining;
+      order.status = remaining.length === 0 ? "queued" : "in_progress";
+      if (remaining.length === 0) order.fulfillmentStage = "queued";
+    });
+    if (saved.status === "missing") {
       sendJson(res, 404, { ok: false, message: "Order not found." });
       return;
     }
-
-    const order = fromJobOrderRow(rows[0]);
-    const remaining = order.assignments.filter((a) => !(a.lineId === lineId && a.machineId === machineId));
-    const now = new Date().toISOString();
-    order.assignments = remaining;
-    order.status = remaining.length === 0 ? "queued" : "in_progress";
-    if (remaining.length === 0) order.fulfillmentStage = "queued";
-    order.updatedAt = now;
-
-    await supabaseRequest(`tlp_job_orders?id=eq.${safeOrderId}`, {
-      method: "PATCH",
-      body: JSON.stringify(toJobOrderRow(order)),
-      headers: { Prefer: "return=minimal" },
-    });
+    if (saved.status !== "saved") {
+      sendJson(res, 409, { ok: false, message: "This order was just changed by someone else. Please try again." });
+      return;
+    }
+    const order = saved.order;
 
     // Free the machine only if it is still running this order.
     await supabaseRequest(
@@ -48,6 +45,6 @@ export default async function handler(req, res) {
 
     sendJson(res, 200, { ok: true, jobOrder: order });
   } catch (error) {
-    sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : "Failed to release machine." });
+    sendServerError(res, error, "Failed to release machine.");
   }
 }

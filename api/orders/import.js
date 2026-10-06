@@ -1,7 +1,7 @@
 import { createRequire } from "module";
 import { buildOrderBundle, mapLaundrobotOrder, persistOrderBundle } from "../_laundrobot.js";
 import { loadLargeLoadKg, loadPackages } from "../_catalog.js";
-import { ensurePost, readJson, sendJson, supabaseRequest } from "../_supabase.js";
+import { ensurePost, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 const _require = createRequire(import.meta.url);
 const crypto = _require("crypto");
@@ -72,9 +72,6 @@ export default async function handler(req, res) {
     await persistOrderBundle(bundle);
     sendJson(res, 201, { ok: true, jobOrder: bundle.jobOrder });
   } catch (error) {
-    sendJson(res, 500, {
-      ok: false,
-      message: error instanceof Error ? error.message : "Unknown LaundroBot import error.",
-    });
+    sendServerError(res, error, "Unknown LaundroBot import error.");
   }
 }

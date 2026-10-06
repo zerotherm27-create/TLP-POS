@@ -1,6 +1,6 @@
 import { requireUser } from "../_auth.js";
 import { freeMachinePatch, fromMachineRow, recordCycleEnd } from "../_machines.js";
-import { ensurePost, readJson, sendJson, supabaseRequest } from "../_supabase.js";
+import { ensurePost, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
@@ -84,6 +84,6 @@ export default async function handler(req, res) {
 
     sendJson(res, 200, { ok: true, machine: updated?.[0] ? fromMachineRow(updated[0]) : undefined });
   } catch (error) {
-    sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : "Action failed." });
+    sendServerError(res, error, "Action failed.");
   }
 }

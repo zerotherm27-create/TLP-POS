@@ -2,7 +2,7 @@ import { createRequire } from "module";
 import { requireUser } from "../_auth.js";
 import { extraChargeCents, extraRateCents, loadExtraRates, loadProducts } from "../_catalog.js";
 import { freeMachinePatch, fromMachineRow } from "../_machines.js";
-import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
+import { changeOrder, ensurePost, fromJobOrderRow, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 const require = createRequire(import.meta.url);
 const crypto = require("crypto");
@@ -126,29 +126,40 @@ export default async function handler(req, res) {
     }
 
     const newLineId = crypto.randomUUID();
-    order.services = [...order.services, { lineId: newLineId, productId: addon.id, quantity: 1, priceCents: extraPriceCents }];
-    order.assignments = [...order.assignments, { lineId: newLineId, machineId: machine.id, productId: addon.id, assignedAt: now }];
-    order.status = "in_progress";
-    order.updatedAt = now;
-
-    try {
-      await supabaseRequest(`tlp_job_orders?id=eq.${safeOrder}`, {
-        method: "PATCH",
-        body: JSON.stringify(toJobOrderRow(order)),
-        headers: { Prefer: "return=minimal" },
-      });
-    } catch (e) {
-      // Couldn't save the order: put the machine back how it was.
-      await supabaseRequest(`tlp_machines?id=eq.${safeMachine}`, {
+    const putMachineBack = () =>
+      supabaseRequest(`tlp_machines?id=eq.${safeMachine}`, {
         method: "PATCH",
         body: JSON.stringify(undo),
         headers: { Prefer: "return=minimal" },
       });
+    let saved;
+    try {
+      // Save against the freshest copy of the order, so a change made by someone else at the same time is kept.
+      saved = await changeOrder(safeOrder, (fresh) => {
+        if (fresh.status === "completed" || fresh.status === "voided") return "This order is closed.";
+        if (fresh.services.length >= 30) return "Too many loads in one order.";
+        if (!fresh.assignments.some((a) => a.lineId === lineId)) return "That load isn't on a machine yet.";
+        fresh.services = [...fresh.services, { lineId: newLineId, productId: addon.id, quantity: 1, priceCents: extraPriceCents }];
+        fresh.assignments = [...fresh.assignments, { lineId: newLineId, machineId: machine.id, productId: addon.id, assignedAt: now }];
+        fresh.status = "in_progress";
+      });
+    } catch (e) {
+      // Couldn't save the order: put the machine back how it was.
+      await putMachineBack();
       throw e;
     }
+    if (saved.status !== "saved") {
+      await putMachineBack();
+      const busy = saved.status === "busy";
+      sendJson(res, saved.status === "missing" ? 404 : busy ? 409 : 400, {
+        ok: false,
+        message: saved.status === "missing" ? "Order not found." : busy ? "This order was just changed by someone else. Please try again." : saved.message,
+      });
+      return;
+    }
 
-    sendJson(res, 200, { ok: true, jobOrder: order, machine: fromMachineRow(updatedMachine) });
+    sendJson(res, 200, { ok: true, jobOrder: saved.order, machine: fromMachineRow(updatedMachine) });
   } catch (error) {
-    sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : "Failed to add the extra time." });
+    sendServerError(res, error, "Failed to add the extra time.");
   }
 }

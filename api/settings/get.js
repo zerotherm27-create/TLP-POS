@@ -1,5 +1,5 @@
 import { requireUser } from "../_auth.js";
-import { sendJson, supabaseRequest } from "../_supabase.js";
+import { sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 export default async function handler(req, res) {
   try {
@@ -17,6 +17,6 @@ export default async function handler(req, res) {
     const settings = Object.fromEntries((rows ?? []).map((r) => [r.key, r.value]));
     sendJson(res, 200, { ok: true, settings });
   } catch (error) {
-    sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : "Failed to load settings." });
+    sendServerError(res, error, "Failed to load settings.");
   }
 }

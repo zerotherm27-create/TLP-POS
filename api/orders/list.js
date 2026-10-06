@@ -1,5 +1,5 @@
 import { requireUser } from "../_auth.js";
-import { fromJobOrderRow, sendJson, supabaseRequest } from "../_supabase.js";
+import { fromJobOrderRow, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 export default async function handler(req, res) {
   try {
@@ -29,9 +29,6 @@ export default async function handler(req, res) {
     const orders = (rows ?? []).map(fromJobOrderRow);
     sendJson(res, 200, { ok: true, orders });
   } catch (error) {
-    sendJson(res, 500, {
-      ok: false,
-      message: error instanceof Error ? error.message : "Failed to list orders.",
-    });
+    sendServerError(res, error, "Failed to list orders.");
   }
 }

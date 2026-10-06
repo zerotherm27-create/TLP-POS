@@ -1,7 +1,7 @@
 import { createRequire } from "module";
 import { requireUser } from "../_auth.js";
 import { allocatePackagePrice, extraChargeCents, loadExtraRates, loadProducts, resolveWash } from "../_catalog.js";
-import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
+import { ensurePost, fromJobOrderRow, readJson, sendJson, sendServerError, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
 const require = createRequire(import.meta.url);
 const crypto = require("crypto");
@@ -151,6 +151,6 @@ export default async function handler(req, res) {
 
     sendJson(res, 200, { ok: true, jobOrder: rows?.[0] ? fromJobOrderRow(rows[0]) : order, notice: notices.length ? [...new Set(notices)].join(" ") : undefined });
   } catch (error) {
-    sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : "Failed to create order." });
+    sendServerError(res, error, "Failed to create order.");
   }
 }

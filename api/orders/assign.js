@@ -1,7 +1,7 @@
 import { requireUser } from "../_auth.js";
 import { loadProducts } from "../_catalog.js";
 import { freeMachinePatch, fromMachineRow } from "../_machines.js";
-import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
+import { changeOrder, ensurePost, fromJobOrderRow, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 // Stage is driven by the most recently assigned machine kind.
 // Washer assigned → "washing"; dryer assigned (after washer done) → "drying".
@@ -103,27 +103,40 @@ export default async function handler(req, res) {
       return;
     }
 
-    try {
-      await supabaseRequest(`tlp_job_orders?id=eq.${safeOrderId}`, {
-        method: "PATCH",
-        body: JSON.stringify(toJobOrderRow(order)),
-        headers: { Prefer: "return=minimal" },
-      });
-    } catch (e) {
-      // Couldn't save the order — give the machine back so it isn't stuck.
-      await supabaseRequest(`tlp_machines?id=eq.${encodeURIComponent(machineId)}`, {
+    // Save against the freshest copy of the order, so two people assigning loads of the same order at once keep both.
+    const giveMachineBack = () =>
+      supabaseRequest(`tlp_machines?id=eq.${encodeURIComponent(machineId)}`, {
         method: "PATCH",
         body: JSON.stringify(freeMachinePatch()),
         headers: { Prefer: "return=minimal" },
       });
+    let saved;
+    try {
+      saved = await changeOrder(safeOrderId, (fresh) => {
+        if (fresh.status === "voided" || fresh.status === "completed") return "Cannot assign machine to a closed order.";
+        if (fresh.assignments.some((a) => a.lineId === lineId)) return "This load is already assigned to a machine.";
+        if (fresh.assignments.some((a) => a.machineId === machineId && !a.finishedAt)) return "Machine already assigned to this order.";
+        fresh.assignments = [...fresh.assignments, newAssignment];
+        fresh.status = "in_progress";
+        fresh.fulfillmentStage = computeStage(fresh, products);
+      });
+    } catch (e) {
+      // Couldn't save the order — give the machine back so it isn't stuck.
+      await giveMachineBack();
       throw e;
     }
+    if (saved.status !== "saved") {
+      await giveMachineBack();
+      const busy = saved.status === "busy";
+      sendJson(res, saved.status === "missing" ? 404 : busy ? 409 : 400, {
+        ok: false,
+        message: saved.status === "missing" ? "Order not found." : busy ? "This order was just changed by someone else. Please try again." : saved.message,
+      });
+      return;
+    }
 
-    sendJson(res, 200, { ok: true, jobOrder: order, machine: fromMachineRow(claimed[0]) });
+    sendJson(res, 200, { ok: true, jobOrder: saved.order, machine: fromMachineRow(claimed[0]) });
   } catch (error) {
-    sendJson(res, 500, {
-      ok: false,
-      message: error instanceof Error ? error.message : "Failed to assign machine.",
-    });
+    sendServerError(res, error, "Failed to assign machine.");
   }
 }

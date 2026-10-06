@@ -113,6 +113,44 @@ export const fromJobOrderRow = (row) => ({
   updatedAt: row.updated_at
 });
 
+/**
+ * Saves an order only if nobody else saved it since it was read (compares updated_at), so two people working on
+ * the same order at once can't overwrite each other's change. Returns true when it was saved.
+ */
+export const saveOrderIfUnchanged = async (safeId, readUpdatedAt, order) => {
+  const guard = readUpdatedAt ? `&updated_at=eq.${encodeURIComponent(readUpdatedAt)}` : "";
+  const done = await supabaseRequest(`tlp_job_orders?id=eq.${safeId}${guard}`, {
+    method: "PATCH",
+    body: JSON.stringify(toJobOrderRow(order)),
+    headers: { Prefer: "return=representation" },
+  });
+  return Array.isArray(done) && done.length > 0;
+};
+
+/**
+ * Read an order, let `change(order)` edit it in place, and save it. If someone else saved the order in between,
+ * read it again and redo the change on the fresh copy. `change` returns a message to stop without saving.
+ * Resolves to { status: "saved", order } | { status: "missing" } | { status: "refused", message } | { status: "busy" }.
+ */
+export const changeOrder = async (safeId, change, tries = 5) => {
+  for (let attempt = 0; attempt < tries; attempt += 1) {
+    const rows = await supabaseRequest(`tlp_job_orders?id=eq.${safeId}&limit=1`);
+    if (!rows?.length) return { status: "missing" };
+    const order = fromJobOrderRow(rows[0]);
+    const refusal = await change(order);
+    if (refusal) return { status: "refused", message: refusal };
+    order.updatedAt = new Date().toISOString();
+    if (await saveOrderIfUnchanged(safeId, rows[0].updated_at, order)) return { status: "saved", order };
+  }
+  return { status: "busy" };
+};
+
+/** Unexpected failure: keep the details in the server log and give the browser a plain message. */
+export const sendServerError = (res, error, fallback) => {
+  console.error(fallback, error instanceof Error ? error.message : error);
+  sendJson(res, 500, { ok: false, message: fallback });
+};
+
 export const toSaleRow = (sale) => ({
   id: sale.id,
   job_order_id: sale.jobOrderId,

@@ -1,4 +1,4 @@
-import { supabaseRequest } from "./_supabase.js";
+import { changeOrder, supabaseRequest } from "./_supabase.js";
 
 export const fromMachineRow = (r) => ({
   id: r.id,
@@ -55,24 +55,19 @@ export const recordCycleEnd = async (row, { endedAt, minutes }) => {
     }
     if (row.active_job_order_id) {
       const safeId = encodeURIComponent(row.active_job_order_id);
-      const rows = await supabaseRequest(`tlp_job_orders?id=eq.${safeId}&select=assignments&limit=1`);
-      const assignments = rows?.[0]?.assignments ?? [];
       // Every load of this order that was on this machine ends now (extra-time add-ons share the machine).
-      let stamped = false;
-      const next = assignments.map((a) => {
-        if (a.machineId === row.id && !a.finishedAt) {
-          stamped = true;
-          return { ...a, finishedAt: endedAt };
-        }
-        return a;
-      });
-      if (stamped) {
-        await supabaseRequest(`tlp_job_orders?id=eq.${safeId}`, {
-          method: "PATCH",
-          body: JSON.stringify({ assignments: next }),
-          headers: { Prefer: "return=minimal" },
+      // Saved against the freshest copy of the order, so it can't undo an assignment made at the same moment.
+      await changeOrder(safeId, (order) => {
+        let stamped = false;
+        order.assignments = order.assignments.map((a) => {
+          if (a.machineId === row.id && !a.finishedAt) {
+            stamped = true;
+            return { ...a, finishedAt: endedAt };
+          }
+          return a;
         });
-      }
+        return stamped ? undefined : "nothing to stamp";
+      });
     }
   } catch (error) {
     console.error("recordCycleEnd failed:", error instanceof Error ? error.message : error);

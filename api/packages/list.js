@@ -1,5 +1,5 @@
 import { requireUser } from "../_auth.js";
-import { sendJson, supabaseRequest } from "../_supabase.js";
+import { sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 export default async function handler(req, res) {
   try {
@@ -25,6 +25,6 @@ export default async function handler(req, res) {
     }));
     sendJson(res, 200, { ok: true, packages });
   } catch (error) {
-    sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : "Failed to list packages." });
+    sendServerError(res, error, "Failed to list packages.");
   }
 }

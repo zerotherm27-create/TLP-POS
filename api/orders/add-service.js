@@ -1,7 +1,7 @@
 import { createRequire } from "module";
 import { requireUser } from "../_auth.js";
 import { loadProducts } from "../_catalog.js";
-import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
+import { changeOrder, ensurePost, readJson, sendJson, sendServerError } from "../_supabase.js";
 
 const require = createRequire(import.meta.url);
 const crypto = require("crypto");
@@ -27,40 +27,34 @@ export default async function handler(req, res) {
     }
 
     const safeId = encodeURIComponent(orderId);
-    const rows = await supabaseRequest(`tlp_job_orders?id=eq.${safeId}&limit=1`);
-    if (!rows?.length) {
+    const saved = await changeOrder(safeId, (order) => {
+      if (order.status === "completed" || order.status === "voided") return "This order is closed.";
+      if (order.services.length >= 30) return "Too many loads in one order.";
+
+      // A dryer added to an order whose washers are the larger titan ones needs the larger dryer too.
+      const washerLines = order.services.filter((l) => products.find((p) => p.id === l.productId)?.machineKind === "washer");
+      const inheritLarge = product.machineKind === "dryer" && washerLines.length > 0 && washerLines.every((l) => l.tier === "titan");
+
+      order.services = [
+        ...order.services,
+        { lineId: crypto.randomUUID(), productId: product.id, quantity: 1, priceCents: product.priceCents, ...(inheritLarge ? { tier: "titan" } : {}) },
+      ];
+    });
+    if (saved.status === "missing") {
       sendJson(res, 404, { ok: false, message: "Order not found." });
       return;
     }
-
-    const order = fromJobOrderRow(rows[0]);
-    if (order.status === "completed" || order.status === "voided") {
-      sendJson(res, 400, { ok: false, message: "This order is closed." });
+    if (saved.status === "refused") {
+      sendJson(res, 400, { ok: false, message: saved.message });
       return;
     }
-    if (order.services.length >= 30) {
-      sendJson(res, 400, { ok: false, message: "Too many loads in one order." });
+    if (saved.status !== "saved") {
+      sendJson(res, 409, { ok: false, message: "This order was just changed by someone else. Please try again." });
       return;
     }
 
-    // A dryer added to an order whose washers are the larger titan ones needs the larger dryer too.
-    const washerLines = order.services.filter((l) => products.find((p) => p.id === l.productId)?.machineKind === "washer");
-    const inheritLarge = product.machineKind === "dryer" && washerLines.length > 0 && washerLines.every((l) => l.tier === "titan");
-
-    order.services = [
-      ...order.services,
-      { lineId: crypto.randomUUID(), productId: product.id, quantity: 1, priceCents: product.priceCents, ...(inheritLarge ? { tier: "titan" } : {}) },
-    ];
-    order.updatedAt = new Date().toISOString();
-
-    await supabaseRequest(`tlp_job_orders?id=eq.${safeId}`, {
-      method: "PATCH",
-      body: JSON.stringify(toJobOrderRow(order)),
-      headers: { Prefer: "return=minimal" },
-    });
-
-    sendJson(res, 200, { ok: true, jobOrder: order });
+    sendJson(res, 200, { ok: true, jobOrder: saved.order });
   } catch (error) {
-    sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : "Failed to add the load." });
+    sendServerError(res, error, "Failed to add the load.");
   }
 }

@@ -1,6 +1,6 @@
 import { requireUser } from "../_auth.js";
 import { finalizeExpired, fromMachineRow, selectMachines } from "../_machines.js";
-import { sendJson } from "../_supabase.js";
+import { sendJson, sendServerError } from "../_supabase.js";
 
 export default async function handler(req, res) {
   try {
@@ -19,6 +19,6 @@ export default async function handler(req, res) {
 
     sendJson(res, 200, { ok: true, machines: rows.map(fromMachineRow) });
   } catch (error) {
-    sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : "Failed to load machines." });
+    sendServerError(res, error, "Failed to load machines.");
   }
 }
