@@ -211,10 +211,6 @@ export default function App() {
           isAdmin={isAdmin}
           onNewOrder={() => { setSection("orders"); setShowCreateOrder(true); }}
           onToggleRole={signOut}
-          onSyncLaundrobot={isAdmin ? async () => {
-            const res = await authFetch("/api/orders/pull", { method: "POST" });
-            if (!res.ok) throw new Error(`sync failed: ${res.status}`);
-          } : undefined}
         />
 
         <main className="flex-1 px-4 md:px-6 py-5 pb-24 md:pb-6 overflow-x-hidden">

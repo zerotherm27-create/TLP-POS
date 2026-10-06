@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { RefreshCw, Plus, Check, AlertCircle, LogOut } from "lucide-react";
+import { Plus, LogOut } from "lucide-react";
 import type { Section } from "./BottomNav";
 
 const SECTION_META: Record<Section, { title: string; subtitle: string }> = {
@@ -10,35 +9,16 @@ const SECTION_META: Record<Section, { title: string; subtitle: string }> = {
   admin:        { title: "Admin Panel", subtitle: "Package builder & configuration" },
 };
 
-type SyncState = "idle" | "loading" | "ok" | "error";
 
 interface Props {
   section: Section;
   isAdmin: boolean;
   onNewOrder: () => void;
   onToggleRole: () => void;
-  onSyncLaundrobot?: () => Promise<void>;
 }
 
-export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onSyncLaundrobot }: Props) {
+export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole }: Props) {
   const { title, subtitle } = SECTION_META[section];
-  const [sync, setSync] = useState<SyncState>("idle");
-
-  const handleSync = async () => {
-    if (!onSyncLaundrobot || sync === "loading") return;
-    setSync("loading");
-    try {
-      await onSyncLaundrobot();
-      setSync("ok");
-    } catch {
-      setSync("error");
-    } finally {
-      setTimeout(() => setSync("idle"), 2500);
-    }
-  };
-
-  const syncLabel = sync === "loading" ? "Syncing…" : sync === "ok" ? "Synced" : sync === "error" ? "Failed" : "LaundroBot";
-  const SyncIcon = sync === "ok" ? Check : sync === "error" ? AlertCircle : RefreshCw;
 
   return (
     <header className="flex items-center justify-between px-4 md:px-6 py-3.5 bg-white border-b border-zinc-100/80 sticky top-0 z-30">
@@ -65,24 +45,6 @@ export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onS
           <span className="hidden min-[430px]:inline">{isAdmin ? "Admin" : "Staff"}</span>
           <LogOut size={12} className="text-zinc-400" />
         </button>
-        {isAdmin && onSyncLaundrobot && (
-          <button
-            onClick={handleSync}
-            disabled={sync === "loading"}
-            className={`h-8 flex items-center gap-1.5 px-3 text-[11px] font-semibold border rounded-xl active:scale-[0.97] transition-all disabled:opacity-60 ${
-              sync === "ok"    ? "border-emerald-200 bg-emerald-50 text-emerald-700" :
-              sync === "error" ? "border-red-200 bg-red-50 text-red-600" :
-                                 "border-zinc-200 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-700"
-            }`}
-          >
-            <SyncIcon
-              size={12}
-              strokeWidth={2.2}
-              className={sync === "loading" ? "animate-spin" : ""}
-            />
-            <span className="hidden sm:inline">{syncLabel}</span>
-          </button>
-        )}
         {section === "orders" && (
           <button
             onClick={onNewOrder}
