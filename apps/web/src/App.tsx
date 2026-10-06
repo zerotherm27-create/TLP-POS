@@ -129,6 +129,18 @@ export default function App() {
     });
   };
 
+  const handleSetOffline = (machineId: string, offline: boolean) => {
+    patchMachine(machineId, { status: offline ? "offline" : "online" });
+    return enqueue(async () => {
+      try {
+        await callApi("/api/machines/action", { machineId, action: offline ? "offline" : "online" });
+      } catch (e) {
+        showNotice(e instanceof Error ? e.message : "Couldn't change the machine.");
+      }
+      await refreshMachines();
+    });
+  };
+
   const handleFinishMachine = (machineId: string) =>
     enqueue(async () => {
       try {
@@ -351,6 +363,26 @@ export default function App() {
                                     >Mark Cleaned</button>
                                   )
                                 )}
+                                {/* Admin: take a machine out of service / back in */}
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={m.status !== "offline"}
+                                  aria-label={`${m.name} available`}
+                                  disabled={m.status === "running"}
+                                  onClick={() => handleSetOffline(m.id, m.status !== "offline")}
+                                  className="flex items-center gap-2.5 h-10 sm:h-8 pr-1 disabled:opacity-60 sm:ml-1"
+                                  title={m.status === "running" ? "Finish or release the load first" : undefined}
+                                >
+                                  <span
+                                    className={`relative inline-flex w-10 h-6 rounded-full transition-colors shrink-0 ${m.status === "offline" ? "bg-zinc-300" : m.status === "running" ? "bg-[#009eb5]" : "bg-emerald-500"}`}
+                                  >
+                                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${m.status === "offline" ? "translate-x-0.5" : "translate-x-[18px]"}`} />
+                                  </span>
+                                  <span className={`text-[11px] font-semibold w-[58px] text-left ${m.status === "offline" ? "text-zinc-400" : m.status === "running" ? "text-[#007a8c]" : "text-emerald-600"}`}>
+                                    {m.status === "offline" ? "Offline" : m.status === "running" ? "Running" : "Available"}
+                                  </span>
+                                </button>
                               </div>
                             </div>
                           );

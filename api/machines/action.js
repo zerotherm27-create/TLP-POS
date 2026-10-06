@@ -7,11 +7,16 @@ const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 export default async function handler(req, res) {
   try {
     if (!ensurePost(req, res)) return;
-    if (!(await requireUser(req, res))) return; // staff and admin
+    const auth = await requireUser(req, res); // staff and admin
+    if (!auth) return;
 
     const { machineId, action } = await readJson(req);
-    if (!ID_RE.test(String(machineId ?? "")) || (action !== "start" && action !== "clean" && action !== "finish")) {
-      sendJson(res, 400, { ok: false, message: "A valid machineId and action (start | clean | finish) are required." });
+    if (!ID_RE.test(String(machineId ?? "")) || !["start", "clean", "finish", "online", "offline"].includes(action)) {
+      sendJson(res, 400, { ok: false, message: "A valid machineId and action (start | clean | finish | online | offline) are required." });
+      return;
+    }
+    if ((action === "online" || action === "offline") && auth.role !== "admin") {
+      sendJson(res, 403, { ok: false, message: "Only an admin can change a machine's availability." });
       return;
     }
     const id = encodeURIComponent(machineId);
@@ -25,7 +30,19 @@ export default async function handler(req, res) {
 
     let patch;
     let guard = "";
-    if (action === "finish") {
+    if (action === "offline" || action === "online") {
+      const wantOffline = action === "offline";
+      if (wantOffline && machine.status === "running") {
+        sendJson(res, 400, { ok: false, message: "This machine is running a load. Finish or release it first." });
+        return;
+      }
+      if (machine.status === (wantOffline ? "offline" : "online")) {
+        sendJson(res, 200, { ok: true, machine: fromMachineRow(machine) }); // already there
+        return;
+      }
+      patch = { status: wantOffline ? "offline" : "online", last_seen_at: new Date().toISOString() };
+      guard = wantOffline ? "&status=eq.online" : "&status=eq.offline";
+    } else if (action === "finish") {
       // End the cycle early (e.g. the washer is done): free the machine so the dryer can be assigned.
       if (machine.status !== "running") {
         sendJson(res, 400, { ok: false, message: "This machine isn't running." });
