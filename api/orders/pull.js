@@ -2,9 +2,9 @@ import {
   buildOrderBundle,
   fetchLaundrobotOrders,
   mapLaundrobotOrder,
-  persistOrderBundle,
-  requireSyncToken
+  persistOrderBundle
 } from "../_laundrobot.js";
+import { requireUser } from "../_auth.js";
 import { sendJson, supabaseRequest } from "../_supabase.js";
 
 const existingLaundrobotOrderIds = async () => {
@@ -24,7 +24,12 @@ export default async function handler(req, res) {
       return;
     }
 
-    requireSyncToken(req);
+    // Scheduled/backup callers authenticate with the sync token; people need an admin login.
+    const syncToken = process.env.LAUNDROBOT_SYNC_TOKEN;
+    const bearer = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+    if (!(syncToken && bearer === syncToken)) {
+      if (!(await requireUser(req, res, { adminOnly: true }))) return;
+    }
 
     const rawOrders = await fetchLaundrobotOrders();
     const existingIds = await existingLaundrobotOrderIds();

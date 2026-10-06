@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { authFetch } from "../lib/supabase";
 import type { JobOrder } from "@tlp/shared";
 
 export function useOrders(branchId: string, fallback: JobOrder[] = []) {
@@ -6,7 +7,7 @@ export function useOrders(branchId: string, fallback: JobOrder[] = []) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`/api/orders/list?branchId=${branchId}`);
+      const res = await authFetch(`/api/orders/list?branchId=${branchId}`);
       if (!res.ok) return;
       const data = await res.json();
       if (data.ok && Array.isArray(data.orders)) {

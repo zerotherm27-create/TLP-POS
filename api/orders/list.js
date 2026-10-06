@@ -1,3 +1,4 @@
+import { requireUser } from "../_auth.js";
 import { fromJobOrderRow, sendJson, supabaseRequest } from "../_supabase.js";
 
 export default async function handler(req, res) {
@@ -11,6 +12,8 @@ export default async function handler(req, res) {
       sendJson(res, 405, { ok: false, message: "Method not allowed." });
       return;
     }
+
+    if (!(await requireUser(req, res))) return;
 
     const rawBranchId = new URL(req.url, "http://localhost").searchParams.get("branchId") ?? "b1";
     if (!/^[A-Za-z0-9_-]{1,32}$/.test(rawBranchId)) {

@@ -1,3 +1,4 @@
+import { requireUser } from "../_auth.js";
 import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
 // Stage is driven by the most recently assigned machine kind.
@@ -9,21 +10,10 @@ const computeStage = (order, products) => {
   return product?.machineKind === "dryer" ? "drying" : "washing";
 };
 
-const requireApiToken = (req, res) => {
-  const token = process.env.ORDERS_API_TOKEN;
-  if (!token) return true; // token not configured — open in dev
-  const received = req.headers.authorization?.replace(/^Bearer\s+/i, "");
-  if (received !== token) {
-    sendJson(res, 401, { ok: false, message: "Unauthorized." });
-    return false;
-  }
-  return true;
-};
-
 export default async function handler(req, res) {
   try {
     if (!ensurePost(req, res)) return;
-    if (!requireApiToken(req, res)) return;
+    if (!(await requireUser(req, res))) return;
 
     const { orderId, machineId, productId, lineId } = await readJson(req);
     if (!orderId || !machineId || !productId || !lineId) {

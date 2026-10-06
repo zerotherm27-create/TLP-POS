@@ -117,7 +117,7 @@ export default function Sidebar({ active, isAdmin, role, onChangeSection, onTogg
             </div>
             <span className="text-white/70 text-xs font-medium capitalize">{role}</span>
           </div>
-          <span className="text-white/30 text-[10px]">Switch</span>
+          <span className="text-white/30 text-[10px]">Sign out</span>
         </button>
       </div>
     </aside>

@@ -1,10 +1,6 @@
-import { useState } from "react";
-import type { Role } from "@tlp/shared";
+import { useAuth } from "./useAuth";
 
 export function useRole() {
-  const [role, setRole] = useState<Role>("staff");
-  const isAdmin = role === "admin";
-  const elevateToAdmin = () => setRole("admin");
-  const demote = () => setRole("staff");
-  return { role, isAdmin, elevateToAdmin, demote };
+  const { role, signOut } = useAuth();
+  return { role: role ?? "staff", isAdmin: role === "admin", signOut };
 }

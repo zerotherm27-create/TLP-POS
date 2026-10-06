@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Plus, Check, AlertCircle } from "lucide-react";
+import { RefreshCw, Plus, Check, AlertCircle, LogOut } from "lucide-react";
 import type { Section } from "./BottomNav";
 
 const SECTION_META: Record<Section, { title: string; subtitle: string }> = {
@@ -50,9 +50,10 @@ export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onS
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0 ml-4">
-        {/* Role switch — mobile only (desktop uses the sidebar) */}
+        {/* Role + sign out — mobile only (desktop uses the sidebar) */}
         <button
           onClick={onToggleRole}
+          aria-label="Sign out"
           className="md:hidden h-8 flex items-center gap-1.5 pl-1.5 pr-2.5 text-[11px] font-semibold border border-zinc-200 rounded-xl text-zinc-600 active:scale-[0.97] transition-all"
         >
           <span
@@ -60,6 +61,7 @@ export default function Topbar({ section, isAdmin, onNewOrder, onToggleRole, onS
             style={{ background: isAdmin ? "#009eb5" : "#4a6d73" }}
           >{isAdmin ? "A" : "S"}</span>
           {isAdmin ? "Admin" : "Staff"}
+          <LogOut size={12} className="text-zinc-400" />
         </button>
         {isAdmin && onSyncLaundrobot && (
           <button

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "./components/layout/Sidebar";
 import BottomNav, { type Section } from "./components/layout/BottomNav";
-import AdminPinModal from "./components/layout/AdminPinModal";
 import Topbar from "./components/layout/Topbar";
 import OverviewSection from "./components/overview/OverviewSection";
 import MachineBoard from "./components/machines/MachineBoard";
@@ -11,6 +10,7 @@ import PackageBuilder from "./components/admin/PackageBuilder";
 import ProductManager from "./components/admin/ProductManager";
 import OrdersSection from "./components/orders/OrdersSection";
 import { useRole } from "./hooks/useRole";
+import { authFetch } from "./lib/supabase";
 import { useOrders } from "./hooks/useOrders";
 import type { Machine, Product } from "@tlp/shared";
 import {
@@ -25,8 +25,7 @@ const spring = { type: "spring" as const, stiffness: 320, damping: 30 };
 
 export default function App() {
   const [section, setSection] = useState<Section>("overview");
-  const { role, isAdmin, elevateToAdmin, demote } = useRole();
-  const [pinOpen, setPinOpen] = useState(false);
+  const { role, isAdmin, signOut } = useRole();
   const [machines, setMachines] = useState<Machine[]>(mockMachines);
   const [products, setProducts] = useState<Product[]>(mockProducts);
   const [packages, setPackages] = useState(mockPackages);
@@ -39,7 +38,7 @@ export default function App() {
 
   const handleAssign = async (orderId: string, machineId: string, productId: string, lineId: string) => {
     try {
-      const res = await fetch("/api/orders/assign", {
+      const res = await authFetch("/api/orders/assign", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ orderId, machineId, productId, lineId }),
@@ -116,17 +115,12 @@ export default function App() {
 
   return (
     <div className="flex min-h-[100dvh] bg-[#f4f6f8]">
-      <AdminPinModal
-        open={pinOpen}
-        onSuccess={() => { elevateToAdmin(); setPinOpen(false); }}
-        onCancel={() => setPinOpen(false)}
-      />
       <Sidebar
         active={section}
         isAdmin={isAdmin}
         role={role}
         onChangeSection={handleSectionChange}
-        onToggleRole={() => isAdmin ? demote() : setPinOpen(true)}
+        onToggleRole={signOut}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
@@ -134,9 +128,9 @@ export default function App() {
           section={section}
           isAdmin={isAdmin}
           onNewOrder={() => { setSection("orders"); setShowCreateOrder(true); }}
-          onToggleRole={() => isAdmin ? demote() : setPinOpen(true)}
+          onToggleRole={signOut}
           onSyncLaundrobot={isAdmin ? async () => {
-            const res = await fetch("/api/orders/pull", { method: "POST" });
+            const res = await authFetch("/api/orders/pull", { method: "POST" });
             if (!res.ok) throw new Error(`sync failed: ${res.status}`);
           } : undefined}
         />
