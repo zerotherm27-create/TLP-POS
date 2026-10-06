@@ -358,7 +358,7 @@ function DetailPanel({
                             onClick={() => addLoad(p.id)}
                             className="h-8 px-3 rounded-xl border border-zinc-200 bg-white text-[12px] font-semibold text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa] disabled:opacity-50 transition-colors"
                           >
-                            +{p.durationMinutes} min <span className="font-normal text-zinc-400">· {formatPeso(product && extraRates && (product.machineKind === "washer" ? extraRates.washCentsPer10 : extraRates.dryCentsPer10) > 0 ? extraChargeCents(extraRates, product.machineKind, p.durationMinutes) : p.priceCents)}</span>
+                            +{p.durationMinutes} min <span className="font-normal text-zinc-400">· {formatPeso(extraRates && (p.machineKind === "washer" ? extraRates.washCentsPer10 : extraRates.dryCentsPer10) > 0 ? extraChargeCents(extraRates, p.machineKind, p.durationMinutes) : p.priceCents)}</span>
                           </button>
                         ))}
                       </div>
@@ -704,6 +704,10 @@ interface Props {
   onCreateOrder?: (payload: NewOrderPayload) => Promise<JobOrder>;
   onVoidOrder?: (orderId: string) => Promise<void>;
   onAddService?: (orderId: string, productId: string) => Promise<void>;
+  onAddExtra?: (orderId: string, lineId: string, productId: string) => Promise<void>;
+  onFinishMachine?: (machineId: string) => Promise<void> | void;
+  extraRates?: ExtraRates;
+  tubCleanThreshold?: number;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
 }
