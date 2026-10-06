@@ -46,7 +46,7 @@ export const fetchLaundrobotOrders = async () => {
 //   services: [{ kind: string, durationMinutes?: number, quantity?: number, priceCents?: number }]
 // }
 // Returns null when the order contains no machine-wash/dry services (e.g. handwash, dryclean).
-export const mapLaundrobotOrder = (rawOrder) => {
+export const mapLaundrobotOrder = (rawOrder, { largeKg = 12 } = {}) => {
   // Only import services that map to a TLP machine product (washer/dryer).
   // Other kinds (handwash, dryclean, fold, etc.) are silently skipped.
   const services = (rawOrder.services ?? []).flatMap((s) => {
@@ -58,11 +58,17 @@ export const mapLaundrobotOrder = (rawOrder) => {
     // Expand quantity into one line per load so each load gets its own machine assignment.
     const count = s.quantity ?? 1;
     const pricePerLoad = s.priceCents != null ? Math.round(s.priceCents / count) : undefined;
+    // A heavy load (e.g. 12 kg) belongs in the larger machines (W5 / D5).
+    const weightKg = Number(s.weightKg);
+    const hasWeight = Number.isFinite(weightKg) && weightKg > 0;
+    const large = hasWeight && weightKg >= largeKg;
     return Array.from({ length: count }, () => ({
       lineId: crypto.randomUUID(),
       productId: product.id,
       quantity: 1,
       priceCents: pricePerLoad,
+      ...(hasWeight ? { weightKg } : {}),
+      ...(large ? { tier: "titan" } : {}),
     }));
   });
 
@@ -75,6 +81,7 @@ export const mapLaundrobotOrder = (rawOrder) => {
     contactNumber: rawOrder.contactNumber ?? undefined,
     notes: rawOrder.notes ?? undefined,
     services,
+    tier: services.some((l) => l.tier === "titan") ? "titan" : undefined,
   };
 };
 
@@ -90,6 +97,7 @@ export const buildOrderBundle = (mapped) => {
     contactNumber: mapped.contactNumber,
     notes: mapped.notes,
     services: mapped.services ?? [],
+    ...(mapped.tier ? { tier: mapped.tier } : {}),
     assignments: [],
     status: "queued",
     paymentStatus: "unpaid",

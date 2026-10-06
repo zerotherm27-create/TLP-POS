@@ -112,6 +112,7 @@ export default async function handler(req, res) {
             productId: line.id,
             quantity: 1,
             priceCents,
+            ...(tier === "titan" ? { tier } : {}),
             ...(resolved.merged && resolved.note ? { note: resolved.note } : {}),
           });
         });

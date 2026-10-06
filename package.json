@@ -11,7 +11,7 @@
     "dev": "npm run dev -w apps/web",
     "dev:gateway": "npm run dev -w apps/gateway",
     "build": "npm run build --workspaces --if-present",
-    "test": "tsc packages/shared/src/orderWorkflow.ts packages/shared/src/orderWorkflow.test.ts packages/shared/src/insights.ts packages/shared/src/insights.test.ts packages/shared/src/extraWash.ts packages/shared/src/extraWash.test.ts packages/shared/src/pricing.ts packages/shared/src/pricing.test.ts --module NodeNext --moduleResolution NodeNext --target ES2022 --outDir .tmp-tests --rootDir . --skipLibCheck --types node && node --test .tmp-tests/packages/shared/src/orderWorkflow.test.js .tmp-tests/packages/shared/src/insights.test.js .tmp-tests/packages/shared/src/extraWash.test.js .tmp-tests/packages/shared/src/pricing.test.js api/_insights.test.js api/_catalog.test.js",
+    "test": "tsc packages/shared/src/orderWorkflow.ts packages/shared/src/orderWorkflow.test.ts packages/shared/src/insights.ts packages/shared/src/insights.test.ts packages/shared/src/extraWash.ts packages/shared/src/extraWash.test.ts packages/shared/src/pricing.ts packages/shared/src/pricing.test.ts --module NodeNext --moduleResolution NodeNext --target ES2022 --outDir .tmp-tests --rootDir . --skipLibCheck --types node && node --test .tmp-tests/packages/shared/src/orderWorkflow.test.js .tmp-tests/packages/shared/src/insights.test.js .tmp-tests/packages/shared/src/extraWash.test.js .tmp-tests/packages/shared/src/pricing.test.js api/_insights.test.js api/_catalog.test.js api/_laundrobot.test.js",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "dependencies": {

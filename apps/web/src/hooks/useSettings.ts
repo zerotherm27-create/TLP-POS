@@ -14,6 +14,7 @@ export function useSettings() {
   const [products, setProductsState] = useState<Product[]>(mockProducts);
   const [tubCleanThreshold, setThresholdState] = useState(DEFAULT_THRESHOLD);
   const [extraRates, setExtraRatesState] = useState<ExtraRates>(NO_EXTRA_RATES);
+  const [largeLoadKg, setLargeLoadKgState] = useState(12);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -23,6 +24,7 @@ export function useSettings() {
       if (res.ok && data.ok) {
         if (Array.isArray(data.settings.products)) setProductsState(data.settings.products);
         if (Number.isInteger(data.settings.tubCleanThreshold)) setThresholdState(data.settings.tubCleanThreshold);
+        if (typeof data.settings.largeLoadKg === "number" && data.settings.largeLoadKg > 0) setLargeLoadKgState(data.settings.largeLoadKg);
         const r = data.settings.extraRates;
         if (r && Number.isInteger(r.washCentsPer10) && Number.isInteger(r.dryCentsPer10)) setExtraRatesState(r);
         setError(null);
@@ -82,5 +84,17 @@ export function useSettings() {
     }
   };
 
-  return { products, tubCleanThreshold, extraRates, settingsError: error, setProducts, setTubCleanThreshold, setExtraRates };
+  const setLargeLoadKg = async (kg: number) => {
+    const before = largeLoadKg;
+    setLargeLoadKgState(kg);
+    try {
+      await save("largeLoadKg", kg);
+      setError(null);
+    } catch (e) {
+      setLargeLoadKgState(before);
+      setError(e instanceof Error ? e.message : "Couldn't save the large-load weight.");
+    }
+  };
+
+  return { products, tubCleanThreshold, extraRates, largeLoadKg, settingsError: error, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg };
 }

@@ -9,6 +9,7 @@ import TransactionTable from "./components/transactions/TransactionTable";
 import PackageBuilder from "./components/admin/PackageBuilder";
 import InsightsPanel from "./components/admin/InsightsPanel";
 import ExtraRatesCard from "./components/admin/ExtraRatesCard";
+import LargeLoadCard from "./components/admin/LargeLoadCard";
 import AlertsCard from "./components/overview/AlertsCard";
 import ProductManager from "./components/admin/ProductManager";
 import OrdersSection from "./components/orders/OrdersSection";
@@ -32,7 +33,7 @@ export default function App() {
   const [section, setSection] = useState<Section>("overview");
   const { role, isAdmin, signOut } = useRole();
   const { machines, refreshMachines, patchMachine } = useMachines();
-  const { products, tubCleanThreshold, extraRates, settingsError, setProducts, setTubCleanThreshold, setExtraRates } = useSettings();
+  const { products, tubCleanThreshold, extraRates, largeLoadKg, settingsError, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg } = useSettings();
   const { packages, error: packagesError, createPackage, updatePackage, removePackage, movePackage } = usePackages();
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines" | "insights">("programs");
   const [showCreateOrder, setShowCreateOrder] = useState(false);
@@ -307,6 +308,7 @@ export default function App() {
                     <div className="flex flex-col gap-5">
                       {settingsError && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{settingsError}</p>}
                       <ExtraRatesCard rates={extraRates} onSave={setExtraRates} />
+                      <LargeLoadCard kg={largeLoadKg} onSave={setLargeLoadKg} />
                       <PackageBuilder products={products} packages={packages} error={packagesError} onCreate={createPackage} onUpdate={updatePackage} onRemove={removePackage} onMove={movePackage} />
                     </div>
                   )}

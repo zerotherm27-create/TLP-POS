@@ -80,6 +80,8 @@ export interface ServiceLine {
   productId: string;
   quantity: number;      // always 1 after expansion at import
   priceCents?: number;   // set by LaundroBot at booking time; absent for TLP walk-in orders
+  tier?: "giant" | "titan"; // machine size this load needs (titan = the larger W5/D5)
+  weightKg?: number;     // load weight, when LaundroBot sends it
   note?: string;         // e.g. "35 min + 10 min extra" when an extra wash was merged into this program
 }
 

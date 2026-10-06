@@ -179,22 +179,12 @@ function DetailPanel({
 
   const assignedLineIds = new Set(order.assignments.map((a) => a.lineId));
 
-  // An order is sold for one machine size (regular, or the larger W5 + D5). Offer only that size unless overridden.
-  const orderTier = order.tier === "titan" ? "titan" : "giant";
+  // Each load has a machine size: regular, or large (the bigger W5 + D5). Offer only that size unless overridden.
   const machineTier = (m: Machine) => (m.tier === "titan" ? "titan" : "giant");
-  const sizeMachines = machines.filter((m) => machineTier(m) === orderTier);
-  const otherSizeLabel = orderTier === "titan" ? "regular" : "large";
-  const poolMachines = showOtherSize ? machines : sizeMachines;
-
-  // All washers done when none of their machines is still running
-  const washerAssignments = order.assignments.filter((a) => {
-    const p = products.find((p) => p.id === a.productId);
-    return p?.machineKind === "washer";
-  });
-  const anyWasherRunning = washerAssignments.some(
-    (a) => machines.find((m) => m.id === a.machineId)?.status === "running"
-  );
-  const washersDone = washerAssignments.length === 0 || !anyWasherRunning;
+  const loadTier = (line: { tier?: "giant" | "titan" }) =>
+    line.tier ?? (order.source === "laundrobot" ? "giant" : order.tier) ?? "giant";
+  const poolFor = (tier: "giant" | "titan") => (showOtherSize ? machines : machines.filter((m) => machineTier(m) === tier));
+  const hasLargeLoad = services.some(({ line }) => loadTier(line) === "titan");
 
   const unassignedServices = services.filter(({ line, product }) => {
     if (assignedLineIds.has(line.lineId)) return false;
@@ -314,6 +304,7 @@ function DetailPanel({
                       {product?.name ?? line.productId}
                       {hasMultipleLoads && <span className="text-zinc-400 ml-1">· Load {loadNum}</span>}
                       {line.note && <span className="block text-[10px] text-[#009eb5] leading-tight">{line.note}</span>}
+                      {line.weightKg ? <span className="block text-[10px] text-zinc-400 leading-tight">{line.weightKg} kg{line.tier === "titan" ? " · large load" : ""}</span> : null}
                     </span>
                     {assignedMachine && (
                       <span className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">
@@ -551,20 +542,18 @@ function DetailPanel({
         {canAssign && (
           <div>
             <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Assign Machine</div>
-            {orderTier === "titan" || sizeMachines.length < machines.length ? (
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2.5 text-[11px] text-zinc-500">
-                <span>
-                  {showOtherSize
-                    ? "Showing all machines."
-                    : orderTier === "titan"
-                      ? `Large order: showing the large machines (${sizeMachines.filter((m) => m.kind === "washer").map((m) => m.publicCode).join(", ")} + ${sizeMachines.filter((m) => m.kind === "dryer").map((m) => m.publicCode).join(", ")}).`
-                      : "Regular order: showing the regular machines."}
-                </span>
-                <button onClick={() => setShowOtherSize((v) => !v)} className="font-semibold text-[#007a8c] hover:underline">
-                  {showOtherSize ? "Only this size" : `Show ${otherSizeLabel} machines too`}
-                </button>
-              </div>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2.5 text-[11px] text-zinc-500">
+              <span>
+                {showOtherSize
+                  ? "Showing all machines."
+                  : hasLargeLoad
+                    ? "Large loads use the large machines (W5 + D5); regular loads use the regular machines."
+                    : "Machines are matched to each load's size."}
+              </span>
+              <button onClick={() => setShowOtherSize((v) => !v)} className="font-semibold text-[#007a8c] hover:underline">
+                {showOtherSize ? "Match sizes again" : "Show all machines"}
+              </button>
+            </div>
             <div className="flex flex-col gap-3">
               {unassignedServices.map(({ line, product }) => {
                 if (!product) return null;
@@ -573,7 +562,7 @@ function DetailPanel({
                 let available: Chip[];
                 let hint: string | null = null;
                 if (product.machineKind === "washer") {
-                  const pairs = rankWasherPairs(poolMachines, tubCleanThreshold);
+                  const pairs = rankWasherPairs(poolFor(loadTier(line)), tubCleanThreshold);
                   available = pairs.map((p) => ({
                     machine: p.washer,
                     suggested: p.suggested,
@@ -591,7 +580,7 @@ function DetailPanel({
                   const orderWashers = washerAssignments
                     .map((a) => machines.find((m) => m.id === a.machineId))
                     .filter((m): m is Machine => !!m);
-                  const plan = planDryers(poolMachines, orderWashers, tubCleanThreshold);
+                  const plan = planDryers(poolFor(loadTier(line)), orderWashers, tubCleanThreshold);
                   available = plan.choices.map((c) => ({ machine: c.machine, suggested: c.suggested, sub: c.pairOf ? `pairs with ${c.pairOf}` : undefined }));
                   const pick = plan.choices.find((c) => c.suggested && c.pairOf);
                   if (pick) hint = `Suggested: ${pick.machine.publicCode} (matches ${pick.pairOf})`;
@@ -611,6 +600,8 @@ function DetailPanel({
                       <span className="text-[11px] text-zinc-500">
                         {product.name}
                         {hasMultipleLoads && <span className="text-zinc-300 ml-1">· Load {loadNum}</span>}
+                        {line.weightKg ? <span className="text-zinc-400 ml-1">· {line.weightKg} kg</span> : null}
+                        {loadTier(line) === "titan" && <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700">Large</span>}
                       </span>
                     </div>
                     {hint && <p className="text-[11px] text-[#007a8c] mb-1.5 px-0.5">{hint}</p>}
