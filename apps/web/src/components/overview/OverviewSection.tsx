@@ -281,15 +281,15 @@ export default function OverviewSection({ machines, orders, sales, products, isA
         <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Machine Status</div>
         <div className="flex flex-col gap-3">
           <div>
-            <div className="text-[9px] font-semibold text-zinc-300 uppercase tracking-widest mb-2">Washers</div>
-            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-              {washers.map((m) => <MachineTile key={m.id} machine={m} onSelect={(x) => setSelectedId(x.id)} />)}
-            </div>
-          </div>
-          <div>
             <div className="text-[9px] font-semibold text-zinc-300 uppercase tracking-widest mb-2">Dryers</div>
             <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
               {dryers.map((m) => <MachineTile key={m.id} machine={m} onSelect={(x) => setSelectedId(x.id)} />)}
+            </div>
+          </div>
+          <div>
+            <div className="text-[9px] font-semibold text-zinc-300 uppercase tracking-widest mb-2">Washers</div>
+            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+              {washers.map((m) => <MachineTile key={m.id} machine={m} onSelect={(x) => setSelectedId(x.id)} />)}
             </div>
           </div>
         </div>

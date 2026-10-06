@@ -154,19 +154,19 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
         </div>
       </div>
 
-      {/* ── Washers grid ── */}
-      <div>
-        <SectionLabel label="Washers" count={washers.length} />
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-          {washers.map((m, i) => renderCard(m, i * 0.04))}
-        </div>
-      </div>
-
       {/* ── Dryers grid ── */}
       <div>
         <SectionLabel label="Dryers" count={dryers.length} />
         <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-          {dryers.map((m, i) => renderCard(m, (washers.length + i) * 0.04))}
+          {dryers.map((m, i) => renderCard(m, i * 0.04))}
+        </div>
+      </div>
+
+      {/* ── Washers grid ── */}
+      <div>
+        <SectionLabel label="Washers" count={washers.length} />
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+          {washers.map((m, i) => renderCard(m, (dryers.length + i) * 0.04))}
         </div>
       </div>
 
