@@ -1,19 +1,20 @@
-import { createRequire } from "module";
-import { supabaseRequest } from "./_supabase.js";
+import type { Product } from "./index.js";
 
-const require = createRequire(import.meta.url);
+export const EXTRA_WASH_STEPS = [10, 20, 30] as const;
 
-/** Product list: the admin-edited one saved in settings, else the built-in defaults. */
-export const loadProducts = async () => {
-  try {
-    const rows = await supabaseRequest("tlp_settings?key=eq.products&select=value&limit=1");
-    if (Array.isArray(rows?.[0]?.value)) return rows[0].value;
-  } catch {}
-  return require("./_products.json");
-};
+export interface ResolvedWash {
+  lines: Product[]; // the program(s) that will actually be run
+  merged: boolean; // base + extra became ONE existing program (e.g. 35 + 10 -> the 45-min program)
+  note?: string; // shown on the load, e.g. "35 min + 10 min extra"
+  notice?: string; // something the staff should know (no matching program)
+}
 
-/** Same rule as packages/shared/src/extraWash.ts (the browser uses that copy; keep both in step). */
-export const resolveWash = (products, baseId, extraMinutes) => {
+/**
+ * A wash with extra minutes is decided BEFORE a machine is assigned, so the machine is started with
+ * the combined program. 35 min + 10 extra runs the 45-min program (with that program's own pulses).
+ * If no program has that total, the extra stays a separate wash load and `notice` explains it.
+ */
+export function resolveWash(products: Product[], baseId: string, extraMinutes: number): ResolvedWash {
   const base = products.find((p) => p.id === baseId);
   if (!base) return { lines: [], merged: false };
   if (!extraMinutes || extraMinutes <= 0) return { lines: [base], merged: false };
@@ -35,4 +36,4 @@ export const resolveWash = (products, baseId, extraMinutes) => {
     merged: false,
     notice: `There's no ${total}-min wash program and no ${extraMinutes}-min one, so the extra wash was left out. Add it in Admin → Products.`,
   };
-};
+}

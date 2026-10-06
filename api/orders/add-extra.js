@@ -28,8 +28,8 @@ export default async function handler(req, res) {
 
     const products = await loadProducts();
     const addon = products.find((p) => p.id === productId);
-    if (!addon || !addon.isExtraTime || !(addon.durationMinutes > 0)) {
-      sendJson(res, 400, { ok: false, message: "Pick an extra-time add-on." });
+    if (!addon || !(addon.durationMinutes > 0) || addon.durationMinutes > 60) {
+      sendJson(res, 400, { ok: false, message: "Pick how much extra time to add (up to 60 min)." });
       return;
     }
 

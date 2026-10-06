@@ -290,6 +290,7 @@ function DetailPanel({
                     <span className="text-sm text-zinc-700">
                       {product?.name ?? line.productId}
                       {hasMultipleLoads && <span className="text-zinc-400 ml-1">· Load {loadNum}</span>}
+                      {line.note && <span className="block text-[10px] text-[#009eb5] leading-tight">{line.note}</span>}
                     </span>
                     {assignedMachine && (
                       <span className="text-[10px] font-bold bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">
@@ -330,7 +331,7 @@ function DetailPanel({
                             onClick={() => addLoad(p.id)}
                             className="h-8 px-3 rounded-xl border border-zinc-200 bg-white text-[12px] font-semibold text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa] disabled:opacity-50 transition-colors"
                           >
-                            {p.name} <span className="font-normal text-zinc-400">· {formatPeso(p.priceCents)}</span>
+                            +{p.durationMinutes} min <span className="font-normal text-zinc-400">· {formatPeso(p.priceCents)}</span>
                           </button>
                         ))}
                       </div>
@@ -397,7 +398,7 @@ function DetailPanel({
                     </div>
                     {/* Extra time goes on the same machine, so the laundry never moves */}
                     {isActive && onAddExtra && product && !product.isExtraTime && (() => {
-                      const addons = products.filter((p) => p.isExtraTime && p.machineKind === product.machineKind);
+                      const addons = products.filter((p) => p.machineKind === product.machineKind && p.durationMinutes <= 30).sort((a, b) => a.durationMinutes - b.durationMinutes);
                       if (addons.length === 0) return null;
                       return extraFor === a.lineId ? (
                         <div className="ml-2 pl-3 border-l-2 border-[#009eb5]/30 flex flex-col gap-2">

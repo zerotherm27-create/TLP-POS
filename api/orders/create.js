@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { requireUser } from "../_auth.js";
-import { loadProducts } from "../_catalog.js";
+import { loadProducts, resolveWash } from "../_catalog.js";
 import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
 const require = createRequire(import.meta.url);
@@ -45,15 +45,32 @@ export default async function handler(req, res) {
 
     const products = await loadProducts();
     const services = [];
+    const notices = [];
     for (const sel of picked) {
       const qty = Number(sel?.quantity ?? 1);
+      const extra = Number(sel?.extraMinutes ?? 0);
       const product = products.find((p) => p.id === sel?.productId);
       if (!product || !ID_RE.test(String(sel.productId)) || !Number.isInteger(qty) || qty < 1 || qty > 10) {
         sendJson(res, 400, { ok: false, message: "One of the services isn't valid." });
         return;
       }
+      if (![0, 10, 20, 30].includes(extra) || (extra > 0 && product.machineKind !== "washer")) {
+        sendJson(res, 400, { ok: false, message: "Extra minutes can only be added to a wash (10, 20 or 30)." });
+        return;
+      }
+      // An extra wash is merged in BEFORE any machine is assigned, so the machine runs the combined program.
+      const resolved = resolveWash(products, product.id, extra);
+      if (resolved.notice) notices.push(resolved.notice);
       for (let i = 0; i < qty; i += 1) {
-        services.push({ lineId: crypto.randomUUID(), productId: product.id, quantity: 1, priceCents: product.priceCents });
+        for (const line of resolved.lines) {
+          services.push({
+            lineId: crypto.randomUUID(),
+            productId: line.id,
+            quantity: 1,
+            priceCents: line.priceCents,
+            ...(resolved.merged && resolved.note ? { note: resolved.note } : {}),
+          });
+        }
       }
     }
     if (services.length > 30) {
@@ -85,7 +102,7 @@ export default async function handler(req, res) {
       headers: { Prefer: "return=representation" },
     });
 
-    sendJson(res, 200, { ok: true, jobOrder: rows?.[0] ? fromJobOrderRow(rows[0]) : order });
+    sendJson(res, 200, { ok: true, jobOrder: rows?.[0] ? fromJobOrderRow(rows[0]) : order, notice: notices.length ? [...new Set(notices)].join(" ") : undefined });
   } catch (error) {
     sendJson(res, 500, { ok: false, message: error instanceof Error ? error.message : "Failed to create order." });
   }

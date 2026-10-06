@@ -2,11 +2,14 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, CreditCard, Banknote, Smartphone, Check } from "lucide-react";
 import type { Product, ServicePackage, PaymentMethod } from "@tlp/shared";
+import { resolveWash, EXTRA_WASH_STEPS } from "@tlp/shared";
 import { formatPeso } from "../../lib/format";
 
 interface ServiceSelection {
   productId: string;
   quantity: number;
+  /** Extra wash minutes (10/20/30). Merged into the matching program before any machine is assigned. */
+  extraMinutes?: number;
 }
 
 export interface NewOrderPayload {
@@ -79,10 +82,17 @@ export default function JobOrderForm({ products, packages, onCheckout }: Props) 
     setSelections(pkg.services.map((id) => ({ productId: id, quantity: 1 })));
   };
 
+  const setExtra = (productId: string, extraMinutes: number) =>
+    setSelections((prev) => prev.map((sel) => (sel.productId === productId ? { ...sel, extraMinutes } : sel)));
+
   const total = selections.reduce((sum, sel) => {
-    const p = products.find((pr) => pr.id === sel.productId);
-    return sum + (p ? p.priceCents * sel.quantity : 0);
+    const resolved = resolveWash(products, sel.productId, sel.extraMinutes ?? 0);
+    return sum + resolved.lines.reduce((t, p) => t + p.priceCents, 0) * sel.quantity;
   }, 0);
+
+  const washSelections = selections
+    .map((sel) => ({ sel, product: products.find((p) => p.id === sel.productId) }))
+    .filter((x): x is { sel: ServiceSelection; product: Product } => !!x.product && x.product.machineKind === "washer" && !x.product.isExtraTime);
 
   const isSelected = (productId: string) => selections.some((s) => s.productId === productId);
 
@@ -201,6 +211,39 @@ export default function JobOrderForm({ products, packages, onCheckout }: Props) 
           })}
         </div>
       </div>
+
+      {/* Extra wash: chosen now, so the washer is started with the combined program */}
+      {washSelections.length > 0 && (
+        <div className="flex flex-col gap-2.5">
+          <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Extra wash (optional)</label>
+          {washSelections.map(({ sel, product }) => {
+            const extra = sel.extraMinutes ?? 0;
+            const resolved = resolveWash(products, product.id, extra);
+            return (
+              <div key={product.id} className="rounded-2xl border border-zinc-100 bg-zinc-50/60 p-3 flex flex-col gap-2">
+                <div className="text-sm font-semibold text-zinc-700">{product.name} wash</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[0, ...EXTRA_WASH_STEPS].map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setExtra(product.id, m)}
+                      className={`h-9 px-4 rounded-xl border text-[12px] font-semibold transition-colors ${
+                        extra === m ? "border-[#007a8c] bg-[#007a8c] text-white" : "border-zinc-200 bg-white text-zinc-600 hover:border-[#009eb5]"
+                      }`}
+                    >
+                      {m === 0 ? "None" : `+${m} min`}
+                    </button>
+                  ))}
+                </div>
+                {extra > 0 && resolved.merged && (
+                  <p className="text-[11px] text-[#007a8c]">Runs as the <strong>{resolved.lines[0].name}</strong> wash program ({product.name} + {extra} min).</p>
+                )}
+                {extra > 0 && !resolved.merged && resolved.notice && <p className="text-[11px] text-amber-600">{resolved.notice}</p>}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {error && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>}
 

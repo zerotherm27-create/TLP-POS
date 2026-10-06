@@ -54,10 +54,10 @@ export default function App() {
     return run;
   };
 
-  const [notice, setNotice] = useState<string | null>(null);
-  const showNotice = (msg: string) => {
-    setNotice(msg);
-    setTimeout(() => setNotice((cur) => (cur === msg ? null : cur)), 5000);
+  const [notice, setNotice] = useState<{ msg: string; kind: "error" | "info" } | null>(null);
+  const showNotice = (msg: string, kind: "error" | "info" = "error") => {
+    setNotice({ msg, kind });
+    setTimeout(() => setNotice((cur) => (cur?.msg === msg ? null : cur)), kind === "info" ? 9000 : 5000);
   };
 
   const callApi = async (url: string, body: unknown) => {
@@ -75,6 +75,7 @@ export default function App() {
     try {
       const data = await callApi("/api/orders/create", payload);
       addOrder(data.jobOrder);
+      if (data.notice) showNotice(data.notice, "info");
       return data.jobOrder as JobOrder;
     } catch (e) {
       throw e instanceof Error ? e : new Error("Couldn't save the order. Try again.");
@@ -190,9 +191,9 @@ export default function App() {
       {notice && (
         <div
           role="alert"
-          className="fixed top-3 inset-x-4 sm:left-auto sm:right-4 sm:max-w-sm z-[70] rounded-2xl bg-red-600 text-white text-sm font-medium px-4 py-3 shadow-lg"
+          className={`fixed top-3 inset-x-4 sm:left-auto sm:right-4 sm:max-w-sm z-[70] rounded-2xl text-white text-sm font-medium px-4 py-3 shadow-lg ${notice.kind === "info" ? "bg-[#007a8c]" : "bg-red-600"}`}
           onClick={() => setNotice(null)}
-        >{notice}</div>
+        >{notice.msg}</div>
       )}
       <Sidebar
         active={section}
