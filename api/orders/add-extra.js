@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { requireUser } from "../_auth.js";
-import { loadProducts } from "../_catalog.js";
+import { extraChargeCents, loadExtraRates, loadProducts } from "../_catalog.js";
 import { freeMachinePatch, fromMachineRow } from "../_machines.js";
 import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
@@ -69,6 +69,10 @@ export default async function handler(req, res) {
 
     const now = new Date().toISOString();
     const minutes = Math.round(addon.durationMinutes);
+    const rates = await loadExtraRates();
+    const rate = machine.kind === "washer" ? rates.washCentsPer10 : rates.dryCentsPer10;
+    // Extra time is priced per 10 minutes at the admin rate; if no rate is set, fall back to the program's own price.
+    const extraPriceCents = rate > 0 ? extraChargeCents(rates, machine.kind, minutes) : addon.priceCents;
     let updatedMachine;
     let undo;
 
@@ -119,7 +123,7 @@ export default async function handler(req, res) {
     }
 
     const newLineId = crypto.randomUUID();
-    order.services = [...order.services, { lineId: newLineId, productId: addon.id, quantity: 1, priceCents: addon.priceCents }];
+    order.services = [...order.services, { lineId: newLineId, productId: addon.id, quantity: 1, priceCents: extraPriceCents }];
     order.assignments = [...order.assignments, { lineId: newLineId, machineId: machine.id, productId: addon.id, assignedAt: now }];
     order.status = "in_progress";
     order.updatedAt = now;

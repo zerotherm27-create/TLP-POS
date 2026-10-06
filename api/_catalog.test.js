@@ -38,3 +38,26 @@ test("no matching total: the extra stays a separate load and staff are told", ()
 test("unknown program returns nothing", () => {
   assert.deepEqual(resolveWash(products, "nope", 10).lines, []);
 });
+
+import { allocatePackagePrice, extraChargeCents } from "./_catalog.js";
+
+test("package price splits across the loads and always adds up exactly", () => {
+  // 330 with a 35-min wash (₱100) and a 30-min dry (₱50): 2/3 and 1/3
+  assert.deepEqual(allocatePackagePrice(33000, [{ priceCents: 10000 }, { priceCents: 5000 }]), [22000, 11000]);
+  // no program prices: equal split, odd cent goes to the first load
+  assert.deepEqual(allocatePackagePrice(33001, [{ priceCents: 0 }, { priceCents: 0 }]), [16501, 16500]);
+  for (const price of [0, 1, 999, 33000, 12345]) {
+    const parts = allocatePackagePrice(price, [{ priceCents: 3333 }, { priceCents: 7777 }, { priceCents: 1 }]);
+    assert.equal(parts.reduce((a, b) => a + b, 0), price);
+  }
+  assert.deepEqual(allocatePackagePrice(500, []), []);
+});
+
+test("extra minutes are charged per 10 minutes at the admin rate", () => {
+  const rates = { washCentsPer10: 2000, dryCentsPer10: 1500 };
+  assert.equal(extraChargeCents(rates, "washer", 10), 2000);
+  assert.equal(extraChargeCents(rates, "washer", 30), 6000);
+  assert.equal(extraChargeCents(rates, "dryer", 20), 3000);
+  assert.equal(extraChargeCents(rates, "dryer", 0), 0);
+  assert.equal(extraChargeCents(undefined, "dryer", 10), 0); // not set yet
+});

@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { requireUser } from "../_auth.js";
-import { loadProducts, resolveWash } from "../_catalog.js";
+import { allocatePackagePrice, extraChargeCents, loadExtraRates, loadProducts, resolveWash } from "../_catalog.js";
 import { ensurePost, fromJobOrderRow, readJson, sendJson, supabaseRequest, toJobOrderRow } from "../_supabase.js";
 
 const require = createRequire(import.meta.url);
@@ -37,21 +37,49 @@ export default async function handler(req, res) {
       sendJson(res, 400, { ok: false, message: "Choose a payment method." });
       return;
     }
-    const picked = Array.isArray(body.services) ? body.services : [];
+    const products = await loadProducts();
+
+    // Everything is sold as a package: its price is what the customer pays (extras are added on top).
+    let pkg = null;
+    const packageId = typeof body.packageId === "string" ? body.packageId : "";
+    if (packageId) {
+      if (!ID_RE.test(packageId)) {
+        sendJson(res, 400, { ok: false, message: "That package isn't valid." });
+        return;
+      }
+      const pkgRows = await supabaseRequest(`tlp_packages?id=eq.${encodeURIComponent(packageId)}&limit=1`);
+      pkg = pkgRows?.[0] ?? null;
+      if (!pkg) {
+        sendJson(res, 400, { ok: false, message: "That package no longer exists." });
+        return;
+      }
+      if (!(pkg.price_cents > 0)) {
+        sendJson(res, 400, { ok: false, message: `"${pkg.name}" has no price yet. Set it in Admin → Packages.` });
+        return;
+      }
+    }
+
+    const extras = body.extras && typeof body.extras === "object" ? body.extras : {};
+    const picked = pkg
+      ? (pkg.services ?? []).map((id) => ({ productId: id, quantity: 1, extraMinutes: Number(extras[id] ?? 0) }))
+      : Array.isArray(body.services) ? body.services : [];
     if (picked.length === 0 || picked.length > 20) {
-      sendJson(res, 400, { ok: false, message: "Pick at least one service." });
+      sendJson(res, 400, { ok: false, message: "Pick a package." });
       return;
     }
 
-    const products = await loadProducts();
+    const rates = await loadExtraRates();
+    const shares = pkg
+      ? allocatePackagePrice(pkg.price_cents, picked.map((sel) => products.find((p) => p.id === sel.productId) ?? { priceCents: 0 }))
+      : [];
     const services = [];
     const notices = [];
-    for (const sel of picked) {
+    for (const [index, sel] of picked.entries()) {
       const qty = Number(sel?.quantity ?? 1);
       const extra = Number(sel?.extraMinutes ?? 0);
       const product = products.find((p) => p.id === sel?.productId);
       if (!product || !ID_RE.test(String(sel.productId)) || !Number.isInteger(qty) || qty < 1 || qty > 10) {
-        sendJson(res, 400, { ok: false, message: "One of the services isn't valid." });
+        sendJson(res, 400, { ok: false, message: pkg ? "A program in this package no longer exists." : "One of the services isn't valid." });
         return;
       }
       if (![0, 10, 20, 30].includes(extra) || (extra > 0 && product.machineKind !== "washer")) {
@@ -61,16 +89,23 @@ export default async function handler(req, res) {
       // An extra wash is merged in BEFORE any machine is assigned, so the machine runs the combined program.
       const resolved = resolveWash(products, product.id, extra);
       if (resolved.notice) notices.push(resolved.notice);
+      const extraCents = extraChargeCents(rates, "washer", extra);
       for (let i = 0; i < qty; i += 1) {
-        for (const line of resolved.lines) {
+        resolved.lines.forEach((line, lineIndex) => {
+          let priceCents = line.priceCents;
+          if (pkg) {
+            // First line carries the package share; a merged program also carries the extra charge,
+            // a separate extra load is charged the extra rate on its own.
+            priceCents = lineIndex === 0 ? shares[index] + (resolved.merged ? extraCents : 0) : extraCents;
+          }
           services.push({
             lineId: crypto.randomUUID(),
             productId: line.id,
             quantity: 1,
-            priceCents: line.priceCents,
+            priceCents,
             ...(resolved.merged && resolved.note ? { note: resolved.note } : {}),
           });
-        }
+        });
       }
     }
     if (services.length > 30) {
@@ -88,6 +123,7 @@ export default async function handler(req, res) {
       contactNumber: contactNumber || undefined,
       notes: notes || undefined,
       services,
+      ...(pkg ? { packageId: pkg.id, packageName: pkg.name } : {}),
       assignments: [],
       status: "queued",
       paymentStatus: "paid",

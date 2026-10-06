@@ -30,6 +30,7 @@ export interface ServicePackage {
   id: string;
   name: string;
   description?: string; // short sub-description shown under the name
+  priceCents?: number; // what the customer pays for the whole package
   services: string[]; // product IDs
   createdAt: string;
 }
@@ -106,6 +107,8 @@ export interface JobOrder {
   paymentStatus: PaymentStatus;
   fulfillmentStage: FulfillmentStage;
   paymentMethod?: PaymentMethod;
+  packageId?: string;
+  packageName?: string; // the package this order was sold as, e.g. "Wash & Dry"
   createdAt: string;
   updatedAt: string;
 }
@@ -172,3 +175,5 @@ export { rankMachines, rankWasherPairs, planDryers, machineNumber, computeAlerts
 export type { Alert, AlertKind, MachineSuggestion, WasherPair, DryerChoice, DryerPlan } from "./insights.js";
 export { resolveWash, EXTRA_WASH_STEPS } from "./extraWash.js";
 export type { ResolvedWash } from "./extraWash.js";
+export { allocatePackagePrice, extraChargeCents, NO_EXTRA_RATES } from "./pricing.js";
+export type { ExtraRates } from "./pricing.js";

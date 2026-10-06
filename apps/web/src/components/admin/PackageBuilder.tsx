@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, Package, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, X, Package, ChevronUp, ChevronDown, Pencil, Check } from "lucide-react";
 import type { Product, ServicePackage } from "@tlp/shared";
 import { formatPeso } from "../../lib/format";
 
@@ -9,14 +9,20 @@ interface Props {
   packages: ServicePackage[];
   error?: string | null;
   onCreate: (pkg: ServicePackage) => void;
+  onUpdate: (pkg: ServicePackage) => void;
   onRemove: (id: string) => void;
   onMove: (id: string, direction: -1 | 1) => void;
 }
 
-export default function PackageBuilder({ products, packages, error, onCreate, onRemove, onMove }: Props) {
+export default function PackageBuilder({ products, packages, error, onCreate, onUpdate, onRemove, onMove }: Props) {
   const [pkgName, setPkgName] = useState("");
   const [pkgDesc, setPkgDesc] = useState("");
+  const [pkgPrice, setPkgPrice] = useState("");
+  const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+
+  const toCents = (text: string) => Math.max(0, Math.round((parseFloat(text) || 0) * 100));
+  const cleanPrice = (v: string) => v.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
 
   const toggle = (productId: string) => {
     setSelected((prev) =>
@@ -25,25 +31,21 @@ export default function PackageBuilder({ products, packages, error, onCreate, on
   };
 
   const create = () => {
-    if (!pkgName.trim() || selected.length === 0) return;
+    if (!pkgName.trim() || selected.length === 0 || toCents(pkgPrice) <= 0) return;
     const newPkg: ServicePackage = {
       id: `pkg-${Date.now()}`,
       name: pkgName.trim(),
       description: pkgDesc.trim() || undefined,
+      priceCents: toCents(pkgPrice),
       services: selected,
       createdAt: new Date().toISOString(),
     };
     onCreate(newPkg);
     setPkgName("");
     setPkgDesc("");
+    setPkgPrice("");
     setSelected([]);
   };
-
-  const totalForPackage = (serviceIds: string[]) =>
-    serviceIds.reduce((sum, id) => {
-      const p = products.find((pr) => pr.id === id);
-      return sum + (p ? p.priceCents : 0);
-    }, 0);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
@@ -78,6 +80,24 @@ export default function PackageBuilder({ products, packages, error, onCreate, on
               placeholder="e.g. 8kg wash + 30 min dry, folded"
               className="w-full h-9 px-3 rounded-xl border border-zinc-200 bg-zinc-50/50 text-sm text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
+              Package price (₱) <span className="text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400 pointer-events-none">₱</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={pkgPrice}
+                onChange={(e) => setPkgPrice(cleanPrice(e.target.value))}
+                placeholder="e.g. 330"
+                className="w-full h-9 pl-7 pr-3 rounded-xl border border-zinc-200 bg-zinc-50/50 text-sm text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5] transition-all"
+              />
+            </div>
+            <p className="text-[11px] text-zinc-400">What the customer pays for the whole package, wash and dry together.</p>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -119,7 +139,7 @@ export default function PackageBuilder({ products, packages, error, onCreate, on
 
           <button
             onClick={create}
-            disabled={!pkgName.trim() || selected.length === 0}
+            disabled={!pkgName.trim() || selected.length === 0 || toCents(pkgPrice) <= 0}
             className="flex items-center justify-center gap-2 h-10 rounded-xl text-sm font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: "#009eb5" }}
           >
@@ -150,7 +170,6 @@ export default function PackageBuilder({ products, packages, error, onCreate, on
 
         <AnimatePresence initial={false}>
           {packages.map((pkg, index) => {
-            const total = totalForPackage(pkg.services);
             return (
               <motion.div
                 key={pkg.id}
@@ -175,7 +194,44 @@ export default function PackageBuilder({ products, packages, error, onCreate, on
                       ) : null;
                     })}
                   </div>
-                  <div className="text-xs font-semibold text-[#009eb5] mt-1.5">{formatPeso(total)}</div>
+                  {editing?.id === pkg.id ? (
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className="relative">
+                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm text-zinc-400 pointer-events-none">₱</span>
+                        <input
+                          autoFocus
+                          type="text"
+                          inputMode="decimal"
+                          value={editing.text}
+                          onChange={(e) => setEditing({ id: pkg.id, text: cleanPrice(e.target.value) })}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && toCents(editing.text) > 0) { onUpdate({ ...pkg, priceCents: toCents(editing.text) }); setEditing(null); }
+                            if (e.key === "Escape") setEditing(null);
+                          }}
+                          className="h-9 w-28 pl-6 pr-2 rounded-xl border border-zinc-200 bg-white text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#009eb5]/30 focus:border-[#009eb5]"
+                        />
+                      </div>
+                      <button
+                        disabled={toCents(editing.text) <= 0}
+                        onClick={() => { onUpdate({ ...pkg, priceCents: toCents(editing.text) }); setEditing(null); }}
+                        className="h-9 w-9 rounded-xl flex items-center justify-center text-white disabled:opacity-40"
+                        style={{ background: "#009eb5" }}
+                        aria-label="Save price"
+                      ><Check size={15} strokeWidth={2.5} /></button>
+                      <button onClick={() => setEditing(null)} className="h-9 px-2 text-xs font-semibold text-zinc-400 hover:text-zinc-600">Cancel</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setEditing({ id: pkg.id, text: pkg.priceCents ? String(pkg.priceCents / 100) : "" })}
+                      className={`mt-2 inline-flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-bold transition-colors ${
+                        pkg.priceCents ? "bg-[#e0f6fa] text-[#007a8c] hover:bg-[#cfeef5]" : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                      }`}
+                      aria-label="Edit price"
+                    >
+                      {pkg.priceCents ? formatPeso(pkg.priceCents) : "Set price"}
+                      <Pencil size={11} strokeWidth={2.2} />
+                    </button>
+                  )}
                 </div>
                 <div className="flex flex-col items-center shrink-0 -ml-1" aria-label="Change order">
                   <button

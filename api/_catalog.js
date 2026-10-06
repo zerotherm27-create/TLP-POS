@@ -36,3 +36,26 @@ export const resolveWash = (products, baseId, extraMinutes) => {
     notice: `There's no ${total}-min wash program and no ${extraMinutes}-min one, so the extra wash was left out. Add it in Admin → Products.`,
   };
 };
+
+/** Same rules as packages/shared/src/pricing.ts (the browser uses that copy; keep both in step). */
+export const extraChargeCents = (rates, kind, minutes) =>
+  Math.round((((kind === "washer" ? rates?.washCentsPer10 : rates?.dryCentsPer10) ?? 0) * Math.max(0, minutes)) / 10);
+
+export const allocatePackagePrice = (priceCents, programs) => {
+  if (programs.length === 0) return [];
+  const weights = programs.map((p) => Math.max(0, p.priceCents ?? 0));
+  const sum = weights.reduce((a, b) => a + b, 0);
+  const shares = sum > 0 ? weights.map((w) => Math.floor((priceCents * w) / sum)) : programs.map(() => Math.floor(priceCents / programs.length));
+  shares[0] += priceCents - shares.reduce((a, b) => a + b, 0);
+  return shares;
+};
+
+/** Admin-set price of each extra 10 minutes ({ washCentsPer10, dryCentsPer10 }); zeros until set. */
+export const loadExtraRates = async () => {
+  try {
+    const rows = await supabaseRequest("tlp_settings?key=eq.extraRates&select=value&limit=1");
+    const v = rows?.[0]?.value;
+    if (v && Number.isInteger(v.washCentsPer10) && Number.isInteger(v.dryCentsPer10)) return v;
+  } catch {}
+  return { washCentsPer10: 0, dryCentsPer10: 0 };
+};

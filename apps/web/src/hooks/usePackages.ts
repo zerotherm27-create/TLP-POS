@@ -45,6 +45,18 @@ export function usePackages() {
     }
   };
 
+  const updatePackage = async (pkg: ServicePackage) => {
+    const before = packages;
+    setPackages((prev) => prev.map((p) => (p.id === pkg.id ? pkg : p)));
+    try {
+      await post("/api/packages/save", pkg);
+      setError(null);
+    } catch (e) {
+      setPackages(before);
+      setError(e instanceof Error ? e.message : "Couldn't save the package.");
+    }
+  };
+
   const removePackage = async (id: string) => {
     const before = packages;
     setPackages((prev) => prev.filter((p) => p.id !== id));
@@ -74,5 +86,5 @@ export function usePackages() {
     }
   };
 
-  return { packages, error, createPackage, removePackage, movePackage };
+  return { packages, error, createPackage, updatePackage, removePackage, movePackage };
 }

@@ -5,7 +5,8 @@ import {
   WashingMachine, Wind, X, ChevronRight, RotateCcw, ArrowLeftRight,
 } from "lucide-react";
 import type { JobOrder, Product, Machine, FulfillmentStage, ServicePackage } from "@tlp/shared";
-import { rankWasherPairs, planDryers } from "@tlp/shared";
+import { rankWasherPairs, planDryers, extraChargeCents } from "@tlp/shared";
+import type { ExtraRates } from "@tlp/shared";
 import JobOrderForm, { type NewOrderPayload } from "../overview/JobOrderForm";
 import { formatPeso, formatTime, formatDateTime } from "../../lib/format";
 
@@ -125,6 +126,7 @@ function DetailPanel({
   onAddService,
   onFinishMachine,
   onAddExtra,
+  extraRates,
   tubCleanThreshold = 50,
 }: {
   order: JobOrder;
@@ -138,6 +140,7 @@ function DetailPanel({
   onAddService?: (orderId: string, productId: string) => Promise<void>;
   onFinishMachine?: (machineId: string) => Promise<void> | void;
   onAddExtra?: (orderId: string, lineId: string, productId: string) => Promise<void>;
+  extraRates?: ExtraRates;
   tubCleanThreshold?: number;
 }) {
   const [extraFor, setExtraFor] = useState<string | null>(null);
@@ -216,6 +219,12 @@ function DetailPanel({
           <div className="text-base font-bold text-zinc-900">{order.customerName}</div>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-[11px] font-mono text-zinc-400">{order.orderNumber}</span>
+            {order.packageName && (
+              <>
+                <span className="text-zinc-200">·</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#e0f6fa] text-[#007a8c]">{order.packageName}</span>
+              </>
+            )}
             {order.source === "laundrobot" && (
               <>
                 <span className="text-zinc-200">·</span>
@@ -331,7 +340,7 @@ function DetailPanel({
                             onClick={() => addLoad(p.id)}
                             className="h-8 px-3 rounded-xl border border-zinc-200 bg-white text-[12px] font-semibold text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa] disabled:opacity-50 transition-colors"
                           >
-                            +{p.durationMinutes} min <span className="font-normal text-zinc-400">· {formatPeso(p.priceCents)}</span>
+                            +{p.durationMinutes} min <span className="font-normal text-zinc-400">· {formatPeso(product && extraRates && (product.machineKind === "washer" ? extraRates.washCentsPer10 : extraRates.dryCentsPer10) > 0 ? extraChargeCents(extraRates, product.machineKind, p.durationMinutes) : p.priceCents)}</span>
                           </button>
                         ))}
                       </div>
@@ -665,7 +674,7 @@ interface Props {
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
 }
 
-export default function OrdersSection({ orders: initialOrders, products, packages, machines, isAdmin, showCreate, onCloseCreate, onCreateOrder, onVoidOrder, onAddService, onAddExtra, onFinishMachine, tubCleanThreshold, onAssign, onUnassign }: Props) {
+export default function OrdersSection({ orders: initialOrders, products, packages, machines, isAdmin, showCreate, onCloseCreate, onCreateOrder, onVoidOrder, onAddService, onAddExtra, onFinishMachine, extraRates, tubCleanThreshold, onAssign, onUnassign }: Props) {
   const [orders, setOrders] = useState(initialOrders);
 
   useEffect(() => { setOrders(initialOrders); }, [initialOrders]);
@@ -810,7 +819,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
                   </button>
                 )}
               </div>
-              <JobOrderForm products={products} packages={packages} onCheckout={handleCheckout} />
+              <JobOrderForm products={products} packages={packages} extraRates={extraRates} onCheckout={handleCheckout} />
             </motion.div>
           ) : selected ? (
             <DetailPanel
@@ -826,6 +835,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
               onAddService={onAddService}
               onFinishMachine={onFinishMachine}
               onAddExtra={onAddExtra}
+              extraRates={extraRates}
               tubCleanThreshold={tubCleanThreshold}
             />
           ) : (
@@ -873,7 +883,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
                   </button>
                 )}
               </div>
-              <JobOrderForm products={products} packages={packages} onCheckout={handleCheckout} />
+              <JobOrderForm products={products} packages={packages} extraRates={extraRates} onCheckout={handleCheckout} />
             </motion.div>
           </>
         )}
@@ -914,6 +924,7 @@ export default function OrdersSection({ orders: initialOrders, products, package
               onAddService={onAddService}
               onFinishMachine={onFinishMachine}
               onAddExtra={onAddExtra}
+              extraRates={extraRates}
               tubCleanThreshold={tubCleanThreshold}
               />
             </motion.div>

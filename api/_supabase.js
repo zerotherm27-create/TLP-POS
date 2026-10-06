@@ -83,6 +83,8 @@ export const toJobOrderRow = (jobOrder) => ({
   payment_status: jobOrder.paymentStatus,
   fulfillment_stage: jobOrder.fulfillmentStage,
   payment_method: jobOrder.paymentMethod,
+  package_id: jobOrder.packageId,
+  package_name: jobOrder.packageName,
   created_at: jobOrder.createdAt,
   updated_at: jobOrder.updatedAt
 });
@@ -103,6 +105,8 @@ export const fromJobOrderRow = (row) => ({
   paymentStatus: row.payment_status,
   fulfillmentStage: row.fulfillment_stage,
   paymentMethod: row.payment_method ?? undefined,
+  packageId: row.package_id ?? undefined,
+  packageName: row.package_name ?? undefined,
   createdAt: row.created_at,
   updatedAt: row.updated_at
 });

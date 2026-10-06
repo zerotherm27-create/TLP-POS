@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, CreditCard, Banknote, Smartphone, Check } from "lucide-react";
-import type { Product, ServicePackage, PaymentMethod } from "@tlp/shared";
-import { resolveWash, EXTRA_WASH_STEPS } from "@tlp/shared";
+import type { Product, ServicePackage, PaymentMethod, ExtraRates } from "@tlp/shared";
+import { resolveWash, EXTRA_WASH_STEPS, extraChargeCents, NO_EXTRA_RATES } from "@tlp/shared";
 import { formatPeso } from "../../lib/format";
 
 interface ServiceSelection {
@@ -18,11 +18,16 @@ export interface NewOrderPayload {
   notes: string;
   services: ServiceSelection[];
   paymentMethod: PaymentMethod;
+  /** Sold as a package: the package price is what the customer pays. */
+  packageId?: string;
+  /** Extra wash minutes per program, e.g. { "p2": 10 }. */
+  extras?: Record<string, number>;
 }
 
 interface Props {
   products: Product[];
   packages: ServicePackage[];
+  extraRates?: ExtraRates;
   /** Saves the order. Resolves when it is stored; rejects with a message if it fails. */
   onCheckout?: (payload: NewOrderPayload) => Promise<void>;
 }
@@ -33,11 +38,13 @@ const PAYMENT_ICONS = {
   manual: CreditCard,
 };
 
-export default function JobOrderForm({ products, packages, onCheckout }: Props) {
+export default function JobOrderForm({ products, packages, extraRates = NO_EXTRA_RATES, onCheckout }: Props) {
   const [customerName, setCustomerName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [selections, setSelections] = useState<ServiceSelection[]>([]);
+  const [pkgId, setPkgId] = useState<string | null>(null);
+  const [showCustom, setShowCustom] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,11 +54,13 @@ export default function JobOrderForm({ products, packages, onCheckout }: Props) 
     setSaving(true);
     setError(null);
     try {
-      await onCheckout({ customerName: customerName.trim(), contactNumber: contactNumber.trim(), notes: notes.trim(), services: selections, paymentMethod });
+      await onCheckout({ customerName: customerName.trim(), contactNumber: contactNumber.trim(), notes: notes.trim(), services: selections, paymentMethod, ...(pkgId ? { packageId: pkgId, extras: Object.fromEntries(selections.filter((x) => (x.extraMinutes ?? 0) > 0).map((x) => [x.productId, x.extraMinutes as number])) } : {}) });
       setCustomerName("");
       setContactNumber("");
       setNotes("");
       setSelections([]);
+      setPkgId(null);
+      setShowCustom(false);
       setPaymentMethod("cash");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save the order. Try again.");
@@ -64,6 +73,7 @@ export default function JobOrderForm({ products, packages, onCheckout }: Props) 
   const dryers = products.filter((p) => p.machineKind === "dryer" && !p.isExtraTime);
 
   const toggleService = (productId: string) => {
+    setPkgId(null); // picking single programs makes it a custom order
     setSelections((prev) => {
       const exists = prev.find((s) => s.productId === productId);
       if (exists) return prev.filter((s) => s.productId !== productId);
@@ -71,24 +81,30 @@ export default function JobOrderForm({ products, packages, onCheckout }: Props) 
     });
   };
 
-  // A package counts as selected while the chosen services match it exactly.
-  const isPackageActive = (pkg: ServicePackage) =>
-    pkg.services.length > 0 &&
-    selections.length === pkg.services.length &&
-    pkg.services.every((id) => selections.some((s) => s.productId === id));
+  const selectedPkg = packages.find((p) => p.id === pkgId) ?? null;
 
   const applyPackage = (pkg: ServicePackage) => {
-    if (isPackageActive(pkg)) { setSelections([]); return; } // tap again to deselect
+    if (pkgId === pkg.id) { setPkgId(null); setSelections([]); return; } // tap again to deselect
+    if (!pkg.priceCents) return; // can't sell a package that has no price yet
+    setPkgId(pkg.id);
     setSelections(pkg.services.map((id) => ({ productId: id, quantity: 1 })));
   };
 
   const setExtra = (productId: string, extraMinutes: number) =>
     setSelections((prev) => prev.map((sel) => (sel.productId === productId ? { ...sel, extraMinutes } : sel)));
 
-  const total = selections.reduce((sum, sel) => {
-    const resolved = resolveWash(products, sel.productId, sel.extraMinutes ?? 0);
-    return sum + resolved.lines.reduce((t, p) => t + p.priceCents, 0) * sel.quantity;
-  }, 0);
+  // Package orders cost the package price plus any extra wash minutes; custom orders add up the programs.
+  const total = selectedPkg
+    ? (selectedPkg.priceCents ?? 0) +
+      selections.reduce((sum, sel) => {
+        const extra = sel.extraMinutes ?? 0;
+        const r = resolveWash(products, sel.productId, extra);
+        return sum + (extra > 0 && (r.merged || r.lines.length > 1) ? extraChargeCents(extraRates, "washer", extra) : 0);
+      }, 0)
+    : selections.reduce((sum, sel) => {
+        const resolved = resolveWash(products, sel.productId, sel.extraMinutes ?? 0);
+        return sum + resolved.lines.reduce((t, p) => t + p.priceCents, 0) * sel.quantity;
+      }, 0);
 
   const washSelections = selections
     .map((sel) => ({ sel, product: products.find((p) => p.id === sel.productId) }))
@@ -139,47 +155,57 @@ export default function JobOrderForm({ products, packages, onCheckout }: Props) 
         />
       </div>
 
-      {/* Quick packages */}
-      {packages.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
-            Quick packages
-          </label>
-          <div className="flex flex-wrap gap-2">
+      {/* Packages: everything is sold as a package */}
+      <div className="flex flex-col gap-2">
+        <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Package</label>
+        {packages.length === 0 ? (
+          <p className="text-sm text-zinc-400 bg-zinc-50 rounded-xl px-3.5 py-3">No packages yet. An admin can create them in Admin → Packages.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {packages.map((pkg) => {
-              const active = isPackageActive(pkg);
+              const active = pkgId === pkg.id;
+              const noPrice = !pkg.priceCents;
               return (
                 <button
                   key={pkg.id}
                   onClick={() => applyPackage(pkg)}
+                  disabled={noPrice}
                   aria-pressed={active}
-                  className={`px-3 py-1.5 border text-xs font-medium active:scale-[0.97] transition-all text-left ${pkg.description ? "rounded-xl" : "rounded-full"} ${
+                  className={`flex items-start justify-between gap-3 px-4 py-3.5 rounded-2xl border text-left transition-all active:scale-[0.99] ${
                     active
                       ? "bg-[#007a8c] border-[#007a8c] text-white shadow-md"
-                      : "border-[#009eb5]/30 text-[#007a8c] hover:bg-[#009eb5]/8"
+                      : noPrice
+                        ? "bg-zinc-50 border-zinc-200 text-zinc-400 cursor-not-allowed"
+                        : "bg-[#e0f6fa] border-[#9fd2df] text-[#005f6e] hover:border-[#009eb5]"
                   }`}
-                  style={active ? undefined : { background: "#e0f6fa" }}
                 >
-                  <div className="flex items-center gap-1.5">
-                    {active && <Check size={12} strokeWidth={3} />}
-                    {pkg.name}
-                  </div>
-                  {pkg.description && (
-                    <div className={`text-[10px] font-normal leading-tight mt-0.5 ${active ? "text-white/80" : "text-[#009eb5]"}`}>{pkg.description}</div>
-                  )}
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-1.5 text-sm font-bold leading-tight">
+                      {active && <Check size={14} strokeWidth={3} />}
+                      {pkg.name}
+                    </span>
+                    {pkg.description && (
+                      <span className={`block text-[11px] font-normal leading-snug mt-1 ${active ? "text-white/80" : noPrice ? "text-zinc-400" : "text-[#007a8c]"}`}>{pkg.description}</span>
+                    )}
+                    {noPrice && <span className="block text-[11px] font-semibold text-amber-600 mt-1">No price set — add it in Admin → Packages</span>}
+                  </span>
+                  {!noPrice && <span className="text-base font-bold tabular-nums shrink-0">{formatPeso(pkg.priceCents ?? 0)}</span>}
                 </button>
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Service selector */}
+      {/* Single programs (not how you normally sell) */}
       <div className="flex flex-col gap-2">
-        <label className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
-          Services
-        </label>
-        <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={() => setShowCustom((v) => !v)}
+          className="self-start text-[12px] font-semibold text-zinc-400 hover:text-zinc-600 transition-colors"
+        >
+          {showCustom ? "Hide custom order" : "Custom order (single programs)…"}
+        </button>
+        {showCustom && <div className="grid grid-cols-2 gap-2">
           {[...washers, ...dryers].map((product) => {
             const selected = isSelected(product.id);
             return (
@@ -209,7 +235,7 @@ export default function JobOrderForm({ products, packages, onCheckout }: Props) 
               </motion.button>
             );
           })}
-        </div>
+        </div>}
       </div>
 
       {/* Extra wash: chosen now, so the washer is started with the combined program */}
@@ -239,6 +265,11 @@ export default function JobOrderForm({ products, packages, onCheckout }: Props) 
                   <p className="text-[11px] text-[#007a8c]">Runs as the <strong>{resolved.lines[0].name}</strong> wash program ({product.name} + {extra} min).</p>
                 )}
                 {extra > 0 && !resolved.merged && resolved.notice && <p className="text-[11px] text-amber-600">{resolved.notice}</p>}
+                {extra > 0 && (resolved.merged || resolved.lines.length > 1) && (
+                  extraRates.washCentsPer10 > 0
+                    ? <p className="text-[11px] text-zinc-500">Extra wash: <strong>{formatPeso(extraChargeCents(extraRates, "washer", extra))}</strong> added to the total.</p>
+                    : pkgId && <p className="text-[11px] text-amber-600">No extra wash price is set yet, so nothing is added. Set it in Admin → Packages.</p>
+                )}
               </div>
             );
           })}

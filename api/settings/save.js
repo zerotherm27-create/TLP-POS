@@ -5,6 +5,9 @@ const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const isNum = (n, min, max) => typeof n === "number" && Number.isFinite(n) && n >= min && n <= max;
 
 const validators = {
+  extraRates: (v) =>
+    !!v && Number.isInteger(v.washCentsPer10) && Number.isInteger(v.dryCentsPer10) &&
+    v.washCentsPer10 >= 0 && v.washCentsPer10 <= 1_000_000 && v.dryCentsPer10 >= 0 && v.dryCentsPer10 <= 1_000_000,
   tubCleanThreshold: (v) => Number.isInteger(v) && v >= 1 && v <= 1000,
   products: (v) =>
     Array.isArray(v) &&
