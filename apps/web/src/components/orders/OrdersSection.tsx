@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, Clock, ExternalLink, Phone, StickyNote,
-  WashingMachine, Wind, X, ChevronRight, RotateCcw, ArrowLeftRight,
+  WashingMachine, Wind, X, ChevronRight, RotateCcw, ArrowLeftRight, Loader2,
 } from "lucide-react";
 import type { JobOrder, Product, Machine, FulfillmentStage, ServicePackage } from "@tlp/shared";
 import { rankWasherPairs, planDryers, extraChargeCents, extraRateCents } from "@tlp/shared";
@@ -146,6 +146,14 @@ function DetailPanel({
   const [showOtherSize, setShowOtherSize] = useState(false);
   const [extraFor, setExtraFor] = useState<string | null>(null);
   const [extraBusy, setExtraBusy] = useState(false);
+  // Machine tapped in the assign list: shows a spinner and blocks repeat taps until the assignment lands (or 4s passes).
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const assignMachine = (machineId: string, productId: string, lineId: string) => {
+    if (!onAssign || assigningId) return;
+    setAssigningId(machineId);
+    onAssign(order.id, machineId, productId, lineId);
+    setTimeout(() => setAssigningId(null), 4000);
+  };
   const addExtra = async (lineId: string, productId: string) => {
     if (!onAddExtra || extraBusy) return;
     setExtraBusy(true);
@@ -630,17 +638,24 @@ function DetailPanel({
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {available.map(({ machine: m, suggested, tubDue, sub, busyNote }) => (
-                          <button
+                          <motion.button
                             key={m.id}
-                            onClick={() => onAssign(order.id, m.id, line.productId, line.lineId)}
-                            className={`flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[11px] font-semibold transition-colors ${
-                              suggested
-                                ? "border-[#009eb5] bg-[#e0f6fa] text-[#007a8c]"
-                                : "border-zinc-200 text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa]"
-                            }`}
+                            onClick={() => assignMachine(m.id, line.productId, line.lineId)}
+                            disabled={!!assigningId}
+                            whileTap={assigningId ? undefined : { scale: 0.93 }}
+                            animate={assigningId === m.id ? { scale: [1, 1.06, 1] } : { scale: 1 }}
+                            transition={{ duration: 0.35 }}
+                            className={`flex items-center gap-1.5 h-8 px-3 rounded-xl border text-[11px] font-semibold transition-colors disabled:cursor-not-allowed ${
+                              assigningId === m.id
+                                ? "border-[#007a8c] bg-[#007a8c] text-white"
+                                : suggested
+                                  ? "border-[#009eb5] bg-[#e0f6fa] text-[#007a8c]"
+                                  : "border-zinc-200 text-zinc-700 hover:border-[#009eb5] hover:text-[#007a8c] hover:bg-[#e0f6fa]"
+                            } ${assigningId && assigningId !== m.id ? "opacity-40" : ""}`}
                           >
+                            {assigningId === m.id && <Loader2 size={12} className="animate-spin" />}
                             <span className="font-bold">{m.publicCode}</span>
-                            <span className={suggested ? "font-normal text-[#009eb5]" : "text-zinc-400 font-normal"}>{m.name}</span>
+                            <span className={assigningId === m.id ? "font-normal text-white/80" : suggested ? "font-normal text-[#009eb5]" : "text-zinc-400 font-normal"}>{m.name}</span>
                             {sub && <span className="font-medium text-[#007a8c]">{sub}</span>}
                             {suggested && (
                               <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-[#007a8c] text-white">Suggested</span>
@@ -649,7 +664,7 @@ function DetailPanel({
                             {tubDue && (
                               <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Clean due</span>
                             )}
-                          </button>
+                          </motion.button>
                         ))}
                       </div>
                     )}
@@ -942,36 +957,4 @@ export default function OrdersSection({ orders: initialOrders, products, package
               exit={{ opacity: 0 }}
               onClick={() => setSelectedId(null)}
               className="lg:hidden fixed inset-0 bg-black/30 z-[55]"
-            />
-            {/* Drawer */}
-            <motion.div
-              key="drawer"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 340, damping: 32 }}
-              className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] rounded-t-3xl bg-white overflow-y-auto"
-              style={{ maxHeight: "90dvh", paddingBottom: "env(safe-area-inset-bottom)" }}
-            >
-              <DetailPanel
-                order={selected}
-                products={products}
-                machines={machines}
-                isAdmin={isAdmin}
-                onClose={() => setSelectedId(null)}
-                onVoid={handleVoid}
-                onAssign={onAssign}
-                onUnassign={onUnassign}
-              onAddService={onAddService}
-              onFinishMachine={onFinishMachine}
-              onAddExtra={onAddExtra}
-              extraRates={extraRates}
-              tubCleanThreshold={tubCleanThreshold}
-              />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
+  
