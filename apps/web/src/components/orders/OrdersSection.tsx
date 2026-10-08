@@ -957,4 +957,36 @@ export default function OrdersSection({ orders: initialOrders, products, package
               exit={{ opacity: 0 }}
               onClick={() => setSelectedId(null)}
               className="lg:hidden fixed inset-0 bg-black/30 z-[55]"
-  
+            />
+            {/* Drawer */}
+            <motion.div
+              key="drawer"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 340, damping: 32 }}
+              className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] rounded-t-3xl bg-white overflow-y-auto"
+              style={{ maxHeight: "90dvh", paddingBottom: "env(safe-area-inset-bottom)" }}
+            >
+              <DetailPanel
+                order={selected}
+                products={products}
+                machines={machines}
+                isAdmin={isAdmin}
+                onClose={() => setSelectedId(null)}
+                onVoid={handleVoid}
+                onAssign={onAssign}
+                onUnassign={onUnassign}
+              onAddService={onAddService}
+              onFinishMachine={onFinishMachine}
+              onAddExtra={onAddExtra}
+              extraRates={extraRates}
+              tubCleanThreshold={tubCleanThreshold}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
