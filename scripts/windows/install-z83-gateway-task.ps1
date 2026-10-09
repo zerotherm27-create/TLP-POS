@@ -47,8 +47,22 @@ Set-Content -Path $scriptPath -Value $command -Encoding UTF8
 
 $taskCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
 & schtasks.exe /Create /TN $TaskName /TR $taskCommand /SC ONLOGON /F | Out-Host
+$taskExit = $LASTEXITCODE
 
-Write-Host "Installed task: $TaskName" -ForegroundColor Green
+$startupDir = [Environment]::GetFolderPath("Startup")
+$startupPath = Join-Path $startupDir "LaundroDesk Gateway.cmd"
+Set-Content -Path $startupPath -Value "@echo off`r`npowershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`"`r`n" -Encoding ASCII
+
+if ($taskExit -eq 0) {
+  Write-Host "Installed scheduled task: $TaskName" -ForegroundColor Green
+} else {
+  Write-Host "Scheduled task install failed with exit code $taskExit; installed Startup launcher instead." -ForegroundColor Yellow
+}
+Write-Host "Startup launcher: $startupPath" -ForegroundColor Green
 Write-Host "Starting gateway task now..."
-& schtasks.exe /Run /TN $TaskName | Out-Host
+if ($taskExit -eq 0) {
+  & schtasks.exe /Run /TN $TaskName | Out-Host
+} else {
+  Start-Process -FilePath "powershell.exe" -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$scriptPath`""
+}
 Write-Host "Check health with: Invoke-RestMethod http://localhost:$GatewayPort/health"
