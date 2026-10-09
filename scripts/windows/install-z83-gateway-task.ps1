@@ -18,12 +18,18 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = (Resolve-Path ".").Path
-$node = (Get-Command node -ErrorAction Stop).Source
-$npm = (Get-Command npm -ErrorAction Stop).Source
+$nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
+if (-not $nodeCommand) {
+  $nodeCommand = Get-Command node -ErrorAction Stop
+}
+$node = $nodeCommand.Source
+if (-not $node -or -not (Test-Path $node)) {
+  throw "node.exe was not found on PATH. Install Node.js LTS, reopen PowerShell, then rerun this script."
+}
 
 Write-Host "Installing dependencies in $repoRoot"
 Push-Location $repoRoot
-npm install
+& npm install
 Pop-Location
 
 $command = @"
@@ -39,13 +45,10 @@ Set-Location "$repoRoot"
 $scriptPath = Join-Path $repoRoot "scripts\windows\run-z83-gateway.generated.ps1"
 Set-Content -Path $scriptPath -Value $command -Encoding UTF8
 
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-$settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-
-Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
+$taskCommand = "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$scriptPath`""
+& schtasks.exe /Create /TN $TaskName /TR $taskCommand /SC ONLOGON /F | Out-Host
 
 Write-Host "Installed task: $TaskName" -ForegroundColor Green
 Write-Host "Starting gateway task now..."
-Start-ScheduledTask -TaskName $TaskName
+& schtasks.exe /Run /TN $TaskName | Out-Host
 Write-Host "Check health with: Invoke-RestMethod http://localhost:$GatewayPort/health"
