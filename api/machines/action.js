@@ -1,4 +1,5 @@
 import { requireUser } from "../_auth.js";
+import { failMachineStartCommand, queueMachineStartCommand } from "../_gateway.js";
 import { freeMachinePatch, fromMachineRow, recordCycleEnd } from "../_machines.js";
 import { ensurePost, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
@@ -30,6 +31,7 @@ export default async function handler(req, res) {
 
     let patch;
     let guard = "";
+    let commandId;
     if (action === "offline" || action === "online") {
       const wantOffline = action === "offline";
       if (wantOffline && machine.status === "running") {
@@ -61,7 +63,13 @@ export default async function handler(req, res) {
         sendJson(res, 400, { ok: false, message: "This machine has no waiting load to start." });
         return;
       }
+      commandId = await queueMachineStartCommand({ machineRow: machine, operatorId: auth.user.id });
+      if (!commandId) {
+        sendJson(res, 400, { ok: false, message: "No machine command could be prepared for this load. Check the order assignment and product setup." });
+        return;
+      }
       patch = { started_at: new Date().toISOString() };
+      guard = "&status=eq.running&started_at=is.null";
     } else {
       if (machine.kind !== "washer") {
         sendJson(res, 400, { ok: false, message: "Only washers have a tub clean." });
@@ -70,11 +78,23 @@ export default async function handler(req, res) {
       patch = { last_tub_clean_cycle: machine.cycle_count };
     }
 
-    const updated = await supabaseRequest(`tlp_machines?id=eq.${id}${guard}`, {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-      headers: { Prefer: "return=representation" },
-    });
+    let updated;
+    try {
+      updated = await supabaseRequest(`tlp_machines?id=eq.${id}${guard}`, {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+        headers: { Prefer: "return=representation" },
+      });
+    } catch (error) {
+      if (commandId) await failMachineStartCommand(commandId, error instanceof Error ? error.message : "Machine start failed.");
+      throw error;
+    }
+
+    if (action === "start" && !updated?.length) {
+      await failMachineStartCommand(commandId, "Machine start was claimed by another request.");
+      sendJson(res, 409, { ok: false, message: "This machine was already started by another request." });
+      return;
+    }
 
     if (action === "finish" && updated?.length) {
       const endedAt = new Date().toISOString();
@@ -82,7 +102,7 @@ export default async function handler(req, res) {
       await recordCycleEnd(machine, { endedAt, minutes: Math.max(0, Math.min(machine.remaining_minutes ?? 0, elapsed)) });
     }
 
-    sendJson(res, 200, { ok: true, machine: updated?.[0] ? fromMachineRow(updated[0]) : undefined });
+    sendJson(res, 200, { ok: true, machine: updated?.[0] ? fromMachineRow(updated[0]) : undefined, commandId });
   } catch (error) {
     sendServerError(res, error, "Action failed.");
   }

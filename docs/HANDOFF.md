@@ -13,7 +13,7 @@ LaundroDesk is the staff app for The Laundry Project's laundromat (formerly "TLP
 Repo: `github.com/zerotherm27-create/TLP-POS`. Shared types and pure logic: `packages/shared`.
 
 ## Environment variables (names only, never commit values)
-`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `LAUNDROBOT_IMPORT_TOKEN`, `BRANCH_ID` (defaults to `b1`).
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `LAUNDROBOT_IMPORT_TOKEN`, `GATEWAY_API_TOKEN`, `BRANCH_ID` (defaults to `b1`).
 The web app also needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 `ORDERS_API_TOKEN` in `.env.example` is not used by any code.
 
@@ -35,14 +35,15 @@ Role comes from the Supabase account's `app_metadata.role` (`admin` or `staff`),
 Staff can assign, start, rework and reassign. Only admins can void orders, open the Admin Panel, change prices and packages,
 take a machine offline, or create an order by hand (`/api/orders/create`, for testing).
 
-## Not built yet: controlling the physical machines
-Nothing in this repo sends a command to a machine. The **Start** button only starts the timer on screen and in the database.
+## Physical machine control gateway
+The **Start** button queues a command for the local Z83 gateway and starts the timer in LaundroDesk. The gateway then forwards
+the selected program to the ESP controller on the machine.
 What exists: per-program `pulse` and `pushDelayMs` settings, the `MachineCommand` and `GatewayActivationRequest/Result` types in
-`packages/shared/src/index.ts`, `espIp` on machines, and one Windows test script (`scripts/windows/test-z83-esp-activate.ps1`).
-A gateway (the NUC) still needs:
-- a way to learn "start machine X with program Y" (an endpoint to poll, or a command queue), and
-- its own credential. The API only accepts staff or admin logins and the LaundroBot import token. Do not give the gateway a
-  staff password or the Supabase service key.
+`packages/shared/src/index.ts`, `espIp` on machines, a local Z83 gateway app (`apps/gateway`), and one Windows test script
+(`scripts/windows/test-z83-esp-activate.ps1`).
+Run the local Z83 gateway with `npm run dev:gateway`. It listens on `http://127.0.0.1:8787`, exposes `GET /health`, accepts
+`POST /commands/activate`, and can poll `/api/gateway/commands/next` using `GATEWAY_API_TOKEN`. Use `-Mode mock` in
+`scripts/windows/test-z83-esp-activate.ps1` before any live machine test.
 
 ## Things to know
 - Every API route checks the caller; the browser only holds the public anon key. All tables have row level security on and no policies (server access only).
