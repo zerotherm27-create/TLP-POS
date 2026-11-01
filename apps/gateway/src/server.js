@@ -5,6 +5,8 @@ const HOST = process.env.GATEWAY_HOST || "127.0.0.1";
 const GATEWAY_ID = process.env.GATEWAY_ID || "z83-local";
 const ESP_ACTIVATION_PATH = normalizePath(process.env.ESP_ACTIVATION_PATH || "/activate");
 const ESP_TIMEOUT_MS = numberFromEnv("ESP_TIMEOUT_MS", 30000);
+// Washers and dryers need the short 60 ms signal the old CSI Pi sent; 500 credits time but leaves Start dead.
+const ESP_PUSH_DELAY_MS = numberFromEnv("ESP_PUSH_DELAY_MS", 60);
 const ESP_AUTH_HEADER = process.env.ESP_AUTH_HEADER || "";
 const ESP_AUTH_TOKEN = process.env.ESP_AUTH_TOKEN || "";
 const LAUNDRODESK_API_BASE = (process.env.LAUNDRODESK_API_BASE || "").replace(/\/$/, "");
@@ -144,7 +146,7 @@ async function realActivate(request) {
     // The ESP refuses a repeated/empty token (-1), so every start needs a fresh one.
     url.searchParams.set("pulse", String(request.product.pulse));
     url.searchParams.set("token", `${request.commandId}-${Date.now().toString(36)}`);
-    url.searchParams.set("pushDelay", String(request.product.pushDelayMs));
+    url.searchParams.set("pushDelay", String(ESP_PUSH_DELAY_MS));
 
     const response = await fetch(url, {
       method: "GET",
