@@ -3,8 +3,8 @@ import http from "node:http";
 const PORT = numberFromEnv("GATEWAY_PORT", 8787);
 const HOST = process.env.GATEWAY_HOST || "127.0.0.1";
 const GATEWAY_ID = process.env.GATEWAY_ID || "z83-local";
-const ESP_ACTIVATION_PATH = normalizePath(process.env.ESP_ACTIVATION_PATH || "/commands/activate");
-const ESP_TIMEOUT_MS = numberFromEnv("ESP_TIMEOUT_MS", 7000);
+const ESP_ACTIVATION_PATH = normalizePath(process.env.ESP_ACTIVATION_PATH || "/activate");
+const ESP_TIMEOUT_MS = numberFromEnv("ESP_TIMEOUT_MS", 30000);
 const ESP_AUTH_HEADER = process.env.ESP_AUTH_HEADER || "";
 const ESP_AUTH_TOKEN = process.env.ESP_AUTH_TOKEN || "";
 const LAUNDRODESK_API_BASE = (process.env.LAUNDRODESK_API_BASE || "").replace(/\/$/, "");
@@ -134,27 +134,21 @@ async function realActivate(request) {
   const timeout = setTimeout(() => controller.abort(), ESP_TIMEOUT_MS);
 
   try {
-    const headers = {
-      "content-type": "application/json"
-    };
+    const headers = {};
     if (ESP_AUTH_HEADER && ESP_AUTH_TOKEN) {
       headers[ESP_AUTH_HEADER] = ESP_AUTH_TOKEN;
     }
 
-    const response = await fetch(target, {
-      method: "POST",
+    // The ESP firmware takes a plain GET with query params (same contract the old CSI Pi used).
+    const url = new URL(target);
+    // The ESP refuses a repeated/empty token (-1), so every start needs a fresh one.
+    url.searchParams.set("pulse", String(request.product.pulse));
+    url.searchParams.set("token", `${request.commandId}-${Date.now().toString(36)}`);
+    url.searchParams.set("pushDelay", String(request.product.pushDelayMs));
+
+    const response = await fetch(url, {
+      method: "GET",
       headers,
-      body: JSON.stringify({
-        commandId: request.commandId,
-        machineId: request.machine.id,
-        machineName: request.machine.name,
-        machineKind: request.machine.kind,
-        productId: request.product.id,
-        productName: request.product.name,
-        pulse: request.product.pulse,
-        pushDelayMs: request.product.pushDelayMs,
-        durationMinutes: request.product.durationMinutes
-      }),
       signal: controller.signal
     });
 
