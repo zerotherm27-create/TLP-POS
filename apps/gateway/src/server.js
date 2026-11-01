@@ -179,13 +179,16 @@ async function realActivate(request) {
   }
 }
 
-// Pulse rules copied from the old CSI app (MACHINE_ACTIVATION_METHOD=nsoft): a 10 min wash is the
-// quick program (1 pulse), longer washes are the regular program (2 pulses); dryers get minutes / 10.
+// Pulse counts measured on Washer 1 on 2026-11-01 (the old CSI app's counts were one lower):
+// 10 min = 1 pulse, 35 min = 3 pulses (verified on the machine). 45 min = 4 is a guess until tested.
+// Dryers use minutes / 10 until each length is verified on the machine.
+const WASHER_PULSES = { 10: 1, 35: 3, 45: 4 };
+
 function pulsesFor(request) {
   const minutes = request.product.durationMinutes;
   if (!Number.isInteger(minutes) || minutes <= 0) return request.product.pulse;
   if (request.machine.kind === "dryer") return Math.max(1, Math.round(minutes / 10));
-  return minutes <= 10 ? 1 : 2;
+  return WASHER_PULSES[minutes] ?? request.product.pulse;
 }
 
 function buildEspUrl(espIp) {
