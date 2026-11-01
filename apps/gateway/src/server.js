@@ -16,6 +16,8 @@ const GATEWAY_POLL_MS = numberFromEnv("GATEWAY_POLL_MS", 3000);
 // received those calls on port 80). 0 = off. To replace the Pi, the Z83 takes over the Pi's IP and uses port 80.
 const CALLBACK_PORT = numberFromEnv("GATEWAY_CALLBACK_PORT", 0);
 const CALLBACK_HOST = process.env.GATEWAY_CALLBACK_HOST || "0.0.0.0";
+// Last token sent to each controller, so a Start callback can be checked against what was really activated.
+const sentTokens = new Map();
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -87,14 +89,24 @@ server.listen(PORT, HOST, () => {
 if (CALLBACK_PORT) {
   http.createServer(async (req, res) => {
     const when = new Date().toISOString();
-    console.log(`${when} callback ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
+    const from = String(req.socket.remoteAddress || "").replace(/^::ffff:/, "");
+    console.log(`${when} callback ${req.method} ${maskToken(req.url)} from ${from}`);
     const match = /^\/api\/remote\/confirm-activation\/([^/]+)\/(\d{1,3}(?:\.\d{1,3}){3})\/?$/.exec((req.url || "").split("?")[0]);
     if (!match) {
       res.writeHead(404, { "content-type": "text/plain" });
       return res.end("not found");
     }
+    const espIp = match[2];
+    const token = decodeURIComponent(match[1]);
+    // Only the controller itself may report its own Start, and only for the token we just sent it.
+    const sent = sentTokens.get(espIp);
+    if (from !== espIp || (sent && sent !== token)) {
+      console.warn(`${when} callback rejected for ${espIp} from ${from}`);
+      res.writeHead(403, { "content-type": "text/plain" });
+      return res.end("forbidden");
+    }
     try {
-      await reportMachineStarted(match[2], decodeURIComponent(match[1]));
+      await reportMachineStarted(espIp, token);
     } catch (error) {
       console.error("Reporting machine start failed:", error instanceof Error ? error.message : error);
     }
@@ -112,7 +124,7 @@ async function reportMachineStarted(espIp, token) {
     headers: { ...gatewayHeaders(), "content-type": "application/json" },
     body: JSON.stringify({ espIp, token })
   });
-  console.log(`${new Date().toISOString()} machine ${espIp} started (token ${token}) -> ${response.status}`);
+  console.log(`${new Date().toISOString()} machine ${espIp} started -> ${response.status}`);
 }
 
 async function pollForCommand() {
@@ -181,7 +193,8 @@ async function realActivate(request) {
     // The ESP refuses a repeated/empty token (-1), so every start needs a fresh one.
     url.searchParams.set("pulse", String(pulsesFor(request)));
     // Keep it short and numeric like the old Pi's DB ids; a 45-char UUID token never reached the machine.
-    url.searchParams.set("token", String(Date.now() % 1000000000));
+    const token = String(Date.now() % 1000000000);
+    url.searchParams.set("token", token);
     url.searchParams.set("pushDelay", String(ESP_PUSH_DELAY_MS));
 
     const response = await fetch(url, {
@@ -191,6 +204,7 @@ async function realActivate(request) {
     });
 
     const text = await response.text();
+    if (response.ok) sentTokens.set(request.machine.espIp, token);
     console.log(`${new Date().toISOString()} ESP ${url.toString()} -> ${response.status} ${text.slice(0, 100)}`);
     return {
       commandId: request.commandId,
@@ -227,6 +241,10 @@ function pulsesFor(request) {
   if (!Number.isInteger(minutes) || minutes <= 0) return request.product.pulse;
   if (request.machine.kind === "dryer") return Math.max(1, Math.round(minutes / 10));
   return WASHER_PULSES[minutes] ?? request.product.pulse;
+}
+
+function maskToken(url) {
+  return String(url || "").replace(/(confirm-activation\/)[^/]+/, "$1***");
 }
 
 function buildEspUrl(espIp) {
