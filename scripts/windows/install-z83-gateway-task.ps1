@@ -12,7 +12,9 @@ param(
   [string] $ApiBase,
   [Parameter(Mandatory = $true)]
   [string] $GatewayApiToken,
-  [string] $EspActivationPath = "/activate"
+  [string] $EspActivationPath = "/activate",
+  # Port where the machine controllers report the physical Start press (80 once the Z83 has the old Pi's address; 0 = off).
+  [int] $CallbackPort = 80
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,6 +40,7 @@ $command = @"
 `$env:LAUNDRODESK_API_BASE = "$ApiBase"
 `$env:GATEWAY_API_TOKEN = "$GatewayApiToken"
 `$env:ESP_ACTIVATION_PATH = "$EspActivationPath"
+`$env:GATEWAY_CALLBACK_PORT = "$CallbackPort"
 Set-Location "$repoRoot"
 & "$node" "apps/gateway/src/server.js"
 "@
