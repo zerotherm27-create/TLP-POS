@@ -33,6 +33,13 @@ export default async function handler(req, res) {
     if (!ensurePost(req, res)) return;
     if (!requireImportToken(req, res)) return;
 
+    // Imports are paused unless LAUNDRODESK_IMPORT_ENABLED=true. 503 (not 200) so LaundroBot
+    // treats the order as not delivered and the Send button can retry once imports are back on.
+    if (process.env.LAUNDRODESK_IMPORT_ENABLED !== "true") {
+      sendJson(res, 503, { ok: false, paused: true, message: "Order import is paused." });
+      return;
+    }
+
     const body = await readJson(req);
     // LaundroBot sends: { id, customerName, contactNumber?, notes?, services: [{kind, durationMinutes, quantity, priceCents}] }
     if (!body.id || !body.customerName || !Array.isArray(body.services) || body.services.length === 0) {
