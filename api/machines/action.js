@@ -12,8 +12,8 @@ export default async function handler(req, res) {
     if (!auth) return;
 
     const { machineId, action } = await readJson(req);
-    if (!ID_RE.test(String(machineId ?? "")) || !["start", "clean", "finish", "online", "offline"].includes(action)) {
-      sendJson(res, 400, { ok: false, message: "A valid machineId and action (start | clean | finish | online | offline) are required." });
+    if (!ID_RE.test(String(machineId ?? "")) || !["activate", "clean", "finish", "online", "offline"].includes(action)) {
+      sendJson(res, 400, { ok: false, message: "A valid machineId and action (activate | clean | finish | online | offline) are required." });
       return;
     }
     if ((action === "online" || action === "offline") && auth.role !== "admin") {
@@ -58,9 +58,16 @@ export default async function handler(req, res) {
         patch = { ...patch, cycle_count: machine.cycle_count + 1, total_run_minutes: machine.total_run_minutes + ranMinutes };
       }
       guard = "&status=eq.running"; // only applies if nobody else already finished it
-    } else if (action === "start") {
+    } else if (action === "activate") {
+      // Sends the load to the machine only. The timer starts when the physical Start button is pressed
+      // (the gateway reports that through /api/gateway/machines/started).
       if (machine.status !== "running" || machine.started_at) {
-        sendJson(res, 400, { ok: false, message: "This machine has no waiting load to start." });
+        sendJson(res, 400, { ok: false, message: "This machine has no waiting load to activate." });
+        return;
+      }
+      const pending = await supabaseRequest(`tlp_machine_commands?machine_id=eq.${id}&status=in.(queued,sent)&limit=1`);
+      if (pending?.length) {
+        sendJson(res, 409, { ok: false, message: "This machine is already being activated." });
         return;
       }
       commandId = await queueMachineStartCommand({ machineRow: machine, operatorId: auth.user.id });
@@ -68,7 +75,7 @@ export default async function handler(req, res) {
         sendJson(res, 400, { ok: false, message: "No machine command could be prepared for this load. Check the order assignment and product setup." });
         return;
       }
-      patch = { started_at: new Date().toISOString() };
+      patch = { last_seen_at: new Date().toISOString() };
       guard = "&status=eq.running&started_at=is.null";
     } else {
       if (machine.kind !== "washer") {
@@ -90,7 +97,7 @@ export default async function handler(req, res) {
       throw error;
     }
 
-    if (action === "start" && !updated?.length) {
+    if (action === "activate" && !updated?.length) {
       await failMachineStartCommand(commandId, "Machine start was claimed by another request.");
       sendJson(res, 409, { ok: false, message: "This machine was already started by another request." });
       return;

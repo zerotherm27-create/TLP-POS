@@ -42,6 +42,7 @@ export const queueMachineStartCommand = async ({ machineRow, operatorId }) => {
   const machine = fromMachineRow(machineRow);
   const request = {
     commandId: crypto.randomUUID(),
+    jobOrderId: machineRow.active_job_order_id,
     machine: {
       id: machine.id,
       name: machine.name,
@@ -89,4 +90,27 @@ export const failMachineStartCommand = async (commandId, error) => {
     }),
     headers: { Prefer: "return=minimal" }
   });
+};
+
+/**
+ * Where each waiting load stands with its machine command: "sending" (queued or on its way),
+ * "ready" (the machine accepted the credit and now waits for the physical Start) or "failed".
+ * Only commands for the load currently on the machine count, so an older load can't leak in.
+ */
+export const loadActivations = async (rows) => {
+  const waiting = rows.filter((r) => r.status === "running" && !r.started_at && r.active_job_order_id);
+  if (!waiting.length) return {};
+  let commands;
+  try {
+    commands = await supabaseRequest("tlp_machine_commands?select=machine_id,status,request&order=requested_at.desc&limit=60");
+  } catch {
+    return {};
+  }
+  const out = {};
+  for (const m of waiting) {
+    const c = (commands ?? []).find((x) => x.machine_id === m.id && x.request?.jobOrderId === m.active_job_order_id);
+    if (!c) continue;
+    out[m.id] = c.status === "succeeded" ? "ready" : c.status === "failed" ? "failed" : "sending";
+  }
+  return out;
 };

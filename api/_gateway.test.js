@@ -5,7 +5,7 @@ process.env.SUPABASE_URL = "http://db.test";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
 process.env.GATEWAY_ID = "z83-local";
 
-const { failMachineStartCommand, queueMachineStartCommand, requireGateway } = await import("./_gateway.js");
+const { failMachineStartCommand, loadActivations, queueMachineStartCommand, requireGateway } = await import("./_gateway.js");
 
 const reply = (body, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -89,6 +89,7 @@ test("starting a machine queues exactly the assigned product command for the gat
   assert.equal(inserted[0].request.machine.espIp, "192.168.210.6");
   assert.equal(inserted[0].request.product.id, "wash-35");
   assert.equal(inserted[0].request.mode, "real");
+  assert.equal(inserted[0].request.jobOrderId, "job-1");
 });
 
 test("a prepared machine command can be marked failed if the guarded start loses a race", async () => {
@@ -110,4 +111,28 @@ test("a prepared machine command can be marked failed if the guarded start loses
   assert.equal(patches[0].body.status, "failed");
   assert.equal(patches[0].body.result.ok, false);
   assert.match(patches[0].body.error, /claimed/);
+});
+
+test("activation status only follows the load currently on the machine", async () => {
+  globalThis.fetch = async (url) => {
+    const path = new URL(url).pathname + new URL(url).search;
+    if (path.startsWith("/rest/v1/tlp_machine_commands")) {
+      return reply([
+        { machine_id: "m1", status: "succeeded", request: { jobOrderId: "job-new" } },
+        { machine_id: "m1", status: "failed", request: { jobOrderId: "job-old" } },
+        { machine_id: "m2", status: "queued", request: { jobOrderId: "job-2" } },
+      ]);
+    }
+    throw new Error(`Unexpected request: ${path}`);
+  };
+
+  const waiting = (id, job) => ({ id, status: "running", started_at: null, active_job_order_id: job });
+  const out = await loadActivations([
+    waiting("m1", "job-new"),
+    waiting("m2", "job-2"),
+    waiting("m3", "job-3"), // no command yet
+    { id: "m4", status: "running", started_at: "2026-11-01T00:00:00Z", active_job_order_id: "job-4" }, // already started
+  ]);
+
+  assert.deepEqual(out, { m1: "ready", m2: "sending" });
 });

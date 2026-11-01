@@ -155,13 +155,14 @@ export default function App() {
     });
   };
 
-  const handleStartMachine = (machineId: string) => {
-    patchMachine(machineId, { startedAt: new Date().toISOString() });
+  // Sends the waiting load to the machine. The timer starts by itself when the physical Start is pressed.
+  const handleActivateMachine = (machineId: string) => {
+    patchMachine(machineId, { activation: "sending" });
     return enqueue(async () => {
       try {
-        await callApi("/api/machines/action", { machineId, action: "start" });
+        await callApi("/api/machines/action", { machineId, action: "activate" });
       } catch (e) {
-        showNotice(e instanceof Error ? e.message : "Couldn't start the timer.");
+        showNotice(e instanceof Error ? e.message : "Couldn't activate the machine.");
       }
       await refreshMachines();
     });
@@ -285,7 +286,7 @@ export default function App() {
                   products={products}
                   onUnassign={handleUnassign}
                   onAssign={handleAssign}
-                  onStartMachine={handleStartMachine}
+                  onActivateMachine={handleActivateMachine}
                   />
                 </div>
               )}

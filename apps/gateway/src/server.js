@@ -12,6 +12,10 @@ const ESP_AUTH_TOKEN = process.env.ESP_AUTH_TOKEN || "";
 const LAUNDRODESK_API_BASE = (process.env.LAUNDRODESK_API_BASE || "").replace(/\/$/, "");
 const GATEWAY_API_TOKEN = process.env.GATEWAY_API_TOKEN || "";
 const GATEWAY_POLL_MS = numberFromEnv("GATEWAY_POLL_MS", 3000);
+// The ESP controllers call this address back when the physical Start button is pressed (the old CSI Pi
+// received those calls on port 80). 0 = off. To replace the Pi, the Z83 takes over the Pi's IP and uses port 80.
+const CALLBACK_PORT = numberFromEnv("GATEWAY_CALLBACK_PORT", 0);
+const CALLBACK_HOST = process.env.GATEWAY_CALLBACK_HOST || "0.0.0.0";
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -79,6 +83,37 @@ server.listen(PORT, HOST, () => {
     console.log("Cloud polling disabled. Set LAUNDRODESK_API_BASE and GATEWAY_API_TOKEN to enable it.");
   }
 });
+
+if (CALLBACK_PORT) {
+  http.createServer(async (req, res) => {
+    const when = new Date().toISOString();
+    console.log(`${when} callback ${req.method} ${req.url} from ${req.socket.remoteAddress}`);
+    const match = /^\/api\/remote\/confirm-activation\/([^/]+)\/(\d{1,3}(?:\.\d{1,3}){3})\/?$/.exec((req.url || "").split("?")[0]);
+    if (!match) {
+      res.writeHead(404, { "content-type": "text/plain" });
+      return res.end("not found");
+    }
+    try {
+      await reportMachineStarted(match[2], decodeURIComponent(match[1]));
+    } catch (error) {
+      console.error("Reporting machine start failed:", error instanceof Error ? error.message : error);
+    }
+    res.writeHead(200, { "content-type": "text/plain" });
+    res.end("ok");
+  }).listen(CALLBACK_PORT, CALLBACK_HOST, () => {
+    console.log(`Listening for machine Start callbacks on http://${CALLBACK_HOST}:${CALLBACK_PORT}`);
+  });
+}
+
+async function reportMachineStarted(espIp, token) {
+  if (!LAUNDRODESK_API_BASE || !GATEWAY_API_TOKEN) return;
+  const response = await fetch(`${LAUNDRODESK_API_BASE}/api/gateway/machines/started`, {
+    method: "POST",
+    headers: { ...gatewayHeaders(), "content-type": "application/json" },
+    body: JSON.stringify({ espIp, token })
+  });
+  console.log(`${new Date().toISOString()} machine ${espIp} started (token ${token}) -> ${response.status}`);
+}
 
 async function pollForCommand() {
   const response = await fetch(`${LAUNDRODESK_API_BASE}/api/gateway/commands/next`, {

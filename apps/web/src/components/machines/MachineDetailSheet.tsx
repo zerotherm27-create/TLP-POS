@@ -120,7 +120,11 @@ export default function MachineDetailSheet({ machine, order, products, threshold
           )}
           {running && !started && (
             <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[12px] font-semibold text-amber-700">
-              Assigned — timer hasn't started yet
+              {machine.activation === "ready"
+                ? "Activated — waiting for Start on the machine"
+                : machine.activation === "sending"
+                  ? "Sending to the machine…"
+                  : "Assigned — not activated yet"}
             </div>
           )}
 

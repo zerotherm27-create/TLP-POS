@@ -37,7 +37,7 @@ const SECTIONS: Section[] = [
       { t: "table", head: ["", "Staff", "Admin"], rows: [
         ["See Overview, Machines, Job Orders, Transactions", "Yes", "Yes"],
         ["Assign machines to an order", "Yes", "Yes"],
-        ["Start a machine, add extra time, mark a tub clean", "Yes", "Yes"],
+        ["Activate a machine, add extra time, mark a tub clean", "Yes", "Yes"],
         ["Rework or reassign a load to a different machine", "Yes", "Yes"],
         ["Void an order", "No", "Yes"],
         ["Admin Panel (packages, prices, programs, machines, insights)", "No", "Yes"],
@@ -55,7 +55,7 @@ const SECTIONS: Section[] = [
         "**The order arrives.** Customers book and pay in LaundroBot, walk-ins included. The order appears in **Job Orders** by itself, already paid, with a **LaundroBot** tag.",
         "**Check the loads.** Open the order. Each bag is a wash line and a dry line. **Large** means it goes to the bigger machines (W5 + D5).",
         "**Assign the washer.** The app suggests a washer and its matching dryer together, like W2 + D2.",
-        "**Start the washer** from the Machines tab once the clothes are in. The timer runs by itself.",
+        "**Activate the washer** from the Machines tab once the clothes are in, then press **Start on the machine**. The timer starts by itself when you do.",
         "**The dryer unlocks when the wash ends.** Move the clothes to the dryer the app suggested and start it.",
         "**The dry finishes.** The load is done and the customer can pick up.",
       ] },

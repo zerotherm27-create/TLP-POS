@@ -51,10 +51,10 @@ interface Props {
   products?: Product[];
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
-  onStartMachine?: (machineId: string) => void;
+  onActivateMachine?: (machineId: string) => void;
 }
 
-export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, products, onUnassign, onAssign, onStartMachine }: Props) {
+export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, products, onUnassign, onAssign, onActivateMachine }: Props) {
   const [activeMachine, setActiveMachine] = useState<Machine | null>(null);
   const [sheetReason, setSheetReason] = useState("");
 
@@ -182,24 +182,33 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
           >
             {activeMachine.status === "running" && (
               <>
-                {/* Start Timer — shown only when machine not yet physically activated */}
-                {!activeMachine.startedAt && onStartMachine && (
+                {/* Activate — sends the waiting load to the machine; the timer starts when Start is pressed on it */}
+                {!activeMachine.startedAt && onActivateMachine && (
                   <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-4">
                     <div>
-                      <div className="text-sm font-bold text-emerald-800">Start timer manually</div>
+                      <div className="text-sm font-bold text-emerald-800">
+                        {activeMachine.activation === "ready" ? "Activated — press Start on the machine" : "Activate machine"}
+                      </div>
                       <div className="text-[11px] text-emerald-600 mt-0.5">
-                        Machine is assigned but timer hasn't started. Tap when the machine physically begins.
+                        {activeMachine.activation === "ready"
+                          ? "The timer starts by itself when Start is pressed on the machine."
+                          : activeMachine.activation === "sending"
+                            ? "Sending the load to the machine…"
+                            : activeMachine.activation === "failed"
+                              ? "The machine didn't answer. Check it is on, then try again."
+                              : "Sends this order to the machine. Then press Start on the machine itself."}
                       </div>
                     </div>
                     <button
+                      disabled={activeMachine.activation === "sending"}
                       onClick={() => {
-                        onStartMachine(activeMachine.id);
+                        onActivateMachine(activeMachine.id);
                         closeSheet();
                       }}
-                      className="shrink-0 flex items-center gap-2 h-10 px-4 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 transition-colors"
+                      className="shrink-0 flex items-center gap-2 h-10 px-4 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Play size={14} strokeWidth={2.5} fill="currentColor" />
-                      Start
+                      {activeMachine.activation === "ready" ? "Send again" : activeMachine.activation === "failed" ? "Try again" : "Activate"}
                     </button>
                   </div>
                 )}
