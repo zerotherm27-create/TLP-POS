@@ -144,7 +144,7 @@ async function realActivate(request) {
     // The ESP firmware takes a plain GET with query params (same contract the old CSI Pi used).
     const url = new URL(target);
     // The ESP refuses a repeated/empty token (-1), so every start needs a fresh one.
-    url.searchParams.set("pulse", String(request.product.pulse));
+    url.searchParams.set("pulse", String(pulsesFor(request)));
     // Keep it short and numeric like the old Pi's DB ids; a 45-char UUID token never reached the machine.
     url.searchParams.set("token", String(Date.now() % 1000000000));
     url.searchParams.set("pushDelay", String(ESP_PUSH_DELAY_MS));
@@ -177,6 +177,15 @@ async function realActivate(request) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// Pulse rules copied from the old CSI app (MACHINE_ACTIVATION_METHOD=nsoft): a 10 min wash is the
+// quick program (1 pulse), longer washes are the regular program (2 pulses); dryers get minutes / 10.
+function pulsesFor(request) {
+  const minutes = request.product.durationMinutes;
+  if (!Number.isInteger(minutes) || minutes <= 0) return request.product.pulse;
+  if (request.machine.kind === "dryer") return Math.max(1, Math.round(minutes / 10));
+  return minutes <= 10 ? 1 : 2;
 }
 
 function buildEspUrl(espIp) {

@@ -12,7 +12,7 @@ param(
   [string] $ApiBase,
   [Parameter(Mandatory = $true)]
   [string] $GatewayApiToken,
-  [string] $EspActivationPath = "/commands/activate"
+  [string] $EspActivationPath = "/activate"
 )
 
 $ErrorActionPreference = "Stop"
