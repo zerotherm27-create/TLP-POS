@@ -180,9 +180,12 @@ async function realActivate(request) {
 }
 
 // Pulse counts measured on Washer 1 on 2026-11-01 (the old CSI app's counts were one lower):
-// 10 min = 1 pulse, 35 min = 3 pulses (verified on the machine). 45 min = 4 is a guess until tested.
+// 3 pulses arms the 35 min (Warm) program with the Start LED blinking; pulses 4 and 5 also give 35,
+// and extra pulses while armed or running are ignored. 1 pulse shows 10 and 2 pulses show 5, but neither
+// arms Start. 45 min therefore also sends 3 pulses; staff add the extra 10 min with the machine's own
+// Add Super Wash button (each press adds 5 min).
 // Dryers use minutes / 10 until each length is verified on the machine.
-const WASHER_PULSES = { 10: 1, 35: 3, 45: 4 };
+const WASHER_PULSES = { 35: 3, 45: 3 };
 
 function pulsesFor(request) {
   const minutes = request.product.durationMinutes;
