@@ -145,7 +145,8 @@ async function realActivate(request) {
     const url = new URL(target);
     // The ESP refuses a repeated/empty token (-1), so every start needs a fresh one.
     url.searchParams.set("pulse", String(request.product.pulse));
-    url.searchParams.set("token", `${request.commandId}-${Date.now().toString(36)}`);
+    // Keep it short and numeric like the old Pi's DB ids; a 45-char UUID token never reached the machine.
+    url.searchParams.set("token", String(Date.now() % 1000000000));
     url.searchParams.set("pushDelay", String(ESP_PUSH_DELAY_MS));
 
     const response = await fetch(url, {
@@ -155,6 +156,7 @@ async function realActivate(request) {
     });
 
     const text = await response.text();
+    console.log(`${new Date().toISOString()} ESP ${url.toString()} -> ${response.status} ${text.slice(0, 100)}`);
     return {
       commandId: request.commandId,
       ok: response.ok,
