@@ -157,6 +157,16 @@ async function pollForCommand() {
       response: result.response
     })
   });
+
+  // No signal exists for the physical Start (the controller's callback arrives ~1 s after the request),
+  // so once the machine has accepted a real activation the cycle timer starts; staff press Start right after.
+  if (result.ok && body.command.mode !== "mock") {
+    try {
+      await reportMachineStarted(body.command.machine.espIp);
+    } catch (error) {
+      console.error("Starting the timer failed:", error instanceof Error ? error.message : error);
+    }
+  }
 }
 
 function gatewayHeaders() {
@@ -204,12 +214,14 @@ async function realActivate(request) {
     });
 
     const text = await response.text();
-    if (response.ok) sentTokens.set(request.machine.espIp, token);
+    // The controller answers 200 with body "1" when it accepts and "-1" when it refuses (e.g. a repeated token).
+    const accepted = response.ok && text.trim() !== "-1";
+    if (accepted) sentTokens.set(request.machine.espIp, token);
     console.log(`${new Date().toISOString()} ESP ${url.toString()} -> ${response.status} ${text.slice(0, 100)}`);
     return {
       commandId: request.commandId,
-      ok: response.ok,
-      status: response.ok ? "succeeded" : "failed",
+      ok: accepted,
+      status: accepted ? "succeeded" : "failed",
       gatewayId: GATEWAY_ID,
       response: `ESP ${response.status} ${response.statusText}${text ? `: ${text.slice(0, 500)}` : ""}`,
       completedAt: new Date().toISOString()

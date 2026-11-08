@@ -50,7 +50,7 @@ export interface Machine {
   activeSaleId?: string;
   customerName?: string;
   remainingMinutes?: number;  // total cycle duration (minutes); set at assignment
-  startedAt?: string;         // ISO timestamp when the physical Start was pressed; absent = still waiting
+  startedAt?: string;         // ISO timestamp when the machine accepted the Activate (staff press Start right after); absent = still waiting
   activation?: "sending" | "ready" | "failed"; // where the waiting load stands with the machine's controller
   lastSeenAt?: string;
   cycleCount?: number;

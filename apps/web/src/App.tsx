@@ -155,7 +155,7 @@ export default function App() {
     });
   };
 
-  // Sends the waiting load to the machine. The timer starts by itself when the physical Start is pressed.
+  // Sends the waiting load to the machine. The gateway starts the timer once the machine accepts it; staff press Start on the machine right after.
   const handleActivateMachine = (machineId: string) => {
     patchMachine(machineId, { activation: "sending" });
     return enqueue(async () => {

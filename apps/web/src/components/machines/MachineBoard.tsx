@@ -191,12 +191,12 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
                       </div>
                       <div className="text-[11px] text-emerald-600 mt-0.5">
                         {activeMachine.activation === "ready"
-                          ? "The timer starts by itself when Start is pressed on the machine."
+                          ? "The machine accepted the load. Press Start on the machine now."
                           : activeMachine.activation === "sending"
                             ? "Sending the load to the machine…"
                             : activeMachine.activation === "failed"
                               ? "The machine didn't answer. Check it is on, then try again."
-                              : "Sends this order to the machine. Then press Start on the machine itself."}
+                              : "Sends this order to the machine and starts the timer. Press Start on the machine right after."}
                       </div>
                       {activeMachine.kind === "washer" && activeMachine.activation !== "ready" && (
                         <div className="text-[11px] font-bold text-amber-700 mt-1.5">
