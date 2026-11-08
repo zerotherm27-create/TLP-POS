@@ -31,7 +31,11 @@ export default async function handler(req, res) {
     }
 
     const safeOrderId = encodeURIComponent(orderId);
-    const rows = await supabaseRequest(`tlp_job_orders?id=eq.${safeOrderId}&limit=1`);
+    // The order and the product list don't depend on each other, so fetch them together.
+    const [rows, products] = await Promise.all([
+      supabaseRequest(`tlp_job_orders?id=eq.${safeOrderId}&limit=1`),
+      loadProducts(),
+    ]);
     if (!rows || rows.length === 0) {
       sendJson(res, 404, { ok: false, message: "Order not found." });
       return;
@@ -45,7 +49,6 @@ export default async function handler(req, res) {
     }
 
     // The load must belong to this order, and its cycle length comes from the program on that load, never from the request.
-    const products = await loadProducts();
     const line = order.services.find((l) => l.lineId === lineId);
     if (!line || line.productId !== productId) {
       sendJson(res, 400, { ok: false, message: "That load isn't part of this order." });
@@ -119,7 +122,7 @@ export default async function handler(req, res) {
         fresh.assignments = [...fresh.assignments, newAssignment];
         fresh.status = "in_progress";
         fresh.fulfillmentStage = computeStage(fresh, products);
-      });
+      }, 5, rows[0]);
     } catch (e) {
       // Couldn't save the order — give the machine back so it isn't stuck.
       await giveMachineBack();

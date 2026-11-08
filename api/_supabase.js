@@ -131,9 +131,10 @@ export const saveOrderIfUnchanged = async (safeId, readUpdatedAt, order) => {
  * read it again and redo the change on the fresh copy. `change` returns a message to stop without saving.
  * Resolves to { status: "saved", order } | { status: "missing" } | { status: "refused", message } | { status: "busy" }.
  */
-export const changeOrder = async (safeId, change, tries = 5) => {
+export const changeOrder = async (safeId, change, tries = 5, firstRow = null) => {
   for (let attempt = 0; attempt < tries; attempt += 1) {
-    const rows = await supabaseRequest(`tlp_job_orders?id=eq.${safeId}&limit=1`);
+    // A row the caller just read can stand in for the first read: the save below only goes through if the order is unchanged since then.
+    const rows = attempt === 0 && firstRow ? [firstRow] : await supabaseRequest(`tlp_job_orders?id=eq.${safeId}&limit=1`);
     if (!rows?.length) return { status: "missing" };
     const order = fromJobOrderRow(rows[0]);
     const refusal = await change(order);
