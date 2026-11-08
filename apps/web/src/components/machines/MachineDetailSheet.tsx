@@ -81,14 +81,16 @@ export default function MachineDetailSheet({ machine, order, products, threshold
         onClick={onClose}
         className="fixed inset-0 bg-black/30 z-[55]"
       />
+      {/* Centered popup: the wrapper ignores clicks so the backdrop still closes it, the panel takes them. */}
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
       <motion.div
         key="detail-sheet"
-        initial={{ y: "100%" }}
-        animate={{ y: 0 }}
-        exit={{ y: "100%" }}
-        transition={{ type: "spring", stiffness: 340, damping: 32 }}
-        className="fixed bottom-0 left-0 right-0 z-[60] rounded-t-3xl bg-white overflow-hidden flex flex-col sm:max-w-md sm:mx-auto"
-        style={{ maxHeight: "80dvh" }}
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ type: "spring", stiffness: 380, damping: 32 }}
+        className="pointer-events-auto w-full max-w-xl rounded-3xl bg-white shadow-2xl overflow-hidden flex flex-col"
+        style={{ maxHeight: "90dvh" }}
       >
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-zinc-100">
           <div className="min-w-0">
@@ -166,6 +168,7 @@ export default function MachineDetailSheet({ machine, order, products, threshold
           {children}
         </div>
       </motion.div>
+      </div>
     </>
   );
 }
