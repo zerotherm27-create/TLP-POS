@@ -93,6 +93,7 @@ export interface MachineAssignment {
   assignedAt: string;
   startedAt?: string;
   finishedAt?: string; // set by the server when the machine's cycle ends
+  endReason?: string;  // why staff ended the time early in the POS (the physical machine is not stopped)
 }
 
 export interface JobOrder {

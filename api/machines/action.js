@@ -11,7 +11,8 @@ export default async function handler(req, res) {
     const auth = await requireUser(req, res); // staff and admin
     if (!auth) return;
 
-    const { machineId, action } = await readJson(req);
+    const { machineId, action, reason: rawReason } = await readJson(req);
+    const reason = typeof rawReason === "string" ? rawReason.trim().slice(0, 200) : "";
     if (!ID_RE.test(String(machineId ?? "")) || !["activate", "clean", "finish", "online", "offline"].includes(action)) {
       sendJson(res, 400, { ok: false, message: "A valid machineId and action (activate | clean | finish | online | offline) are required." });
       return;
@@ -106,7 +107,9 @@ export default async function handler(req, res) {
     if (action === "finish" && updated?.length) {
       const endedAt = new Date().toISOString();
       const elapsed = machine.started_at ? Math.round((Date.now() - Date.parse(machine.started_at)) / 60000) : 0;
-      await recordCycleEnd(machine, { endedAt, minutes: Math.max(0, Math.min(machine.remaining_minutes ?? 0, elapsed)) });
+      await recordCycleEnd(machine, { endedAt, minutes: Math.max(0, Math.min(machine.remaining_minutes ?? 0, elapsed)), reason });
+      // Ending the time in the POS does not stop the physical machine; the reason is kept in the log and on the load.
+      if (reason) console.log(`[${endedAt}] END TIME — machine ${machine.id}, order ${machine.active_job_order_id ?? "-"}, by ${auth.user.email}. Reason: ${reason}`);
     }
 
     sendJson(res, 200, { ok: true, machine: updated?.[0] ? fromMachineRow(updated[0]) : undefined, commandId });

@@ -38,7 +38,7 @@ export const selectMachines = () =>
  * `finishedAt` on the order's assignment so "washed, waiting for a dryer" can be spotted.
  * Never throws: the machine is already free, bookkeeping must not break the request.
  */
-export const recordCycleEnd = async (row, { endedAt, minutes }) => {
+export const recordCycleEnd = async (row, { endedAt, minutes, reason }) => {
   try {
     if (row.started_at) {
       await supabaseRequest("tlp_machine_runs", {
@@ -62,7 +62,8 @@ export const recordCycleEnd = async (row, { endedAt, minutes }) => {
         order.assignments = order.assignments.map((a) => {
           if (a.machineId === row.id && !a.finishedAt) {
             stamped = true;
-            return { ...a, finishedAt: endedAt };
+            // An early end keeps the reason staff gave on the load.
+            return reason ? { ...a, finishedAt: endedAt, endReason: reason } : { ...a, finishedAt: endedAt };
           }
           return a;
         });

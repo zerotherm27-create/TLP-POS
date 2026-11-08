@@ -229,10 +229,10 @@ export default function App() {
     });
   };
 
-  const handleFinishMachine = (machineId: string) =>
+  const handleFinishMachine = (machineId: string, reason?: string) =>
     enqueue(async () => {
       try {
-        await callApi("/api/machines/action", { machineId, action: "finish" });
+        await callApi("/api/machines/action", { machineId, action: "finish", reason });
       } catch (e) {
         showNotice(e instanceof Error ? e.message : "Couldn't finish the machine.");
       }
@@ -337,6 +337,7 @@ export default function App() {
                   onUnassign={handleUnassign}
                   onAssign={handleAssign}
                   onActivateMachine={handleActivateMachine}
+                  onFinishMachine={handleFinishMachine}
                   openMachineId={openMachineId}
                   onOpenedMachine={() => setOpenMachineId(null)}
                   />

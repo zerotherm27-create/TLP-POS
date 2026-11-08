@@ -52,21 +52,25 @@ interface Props {
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
   onActivateMachine?: (machineId: string) => void;
+  /** Ends the time in the POS only (emergency). The reason is required by the popup. */
+  onFinishMachine?: (machineId: string, reason?: string) => Promise<void> | void;
   /** Open this machine's popup as soon as the board shows (set after a machine is assigned). */
   openMachineId?: string | null;
   onOpenedMachine?: () => void;
 }
 
-export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, products, onUnassign, onAssign, onActivateMachine, openMachineId, onOpenedMachine }: Props) {
+export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, products, onUnassign, onAssign, onActivateMachine, onFinishMachine, openMachineId, onOpenedMachine }: Props) {
   // Keep only the id and read the machine from the live list, so the popup follows refreshes.
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeMachine = machines.find((m) => m.id === activeId) ?? null;
   const [sheetReason, setSheetReason] = useState("");
+  const [endReason, setEndReason] = useState("");
 
   useEffect(() => {
     if (!openMachineId) return;
     setActiveId(openMachineId);
     setSheetReason("");
+    setEndReason("");
     onOpenedMachine?.();
   }, [openMachineId, onOpenedMachine]);
 
@@ -85,11 +89,13 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
   const handleCardSelect = (m: Machine) => {
     setActiveId(m.id);
     setSheetReason("");
+    setEndReason("");
   };
 
   const closeSheet = () => {
     setActiveId(null);
     setSheetReason("");
+    setEndReason("");
   };
 
   // Resolve the order and assignment for the active machine
@@ -308,6 +314,38 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
                       })()}
                     </div>
                   </>
+                )}
+
+                {/* End time — frees the machine in the POS only; for emergencies */}
+                {onFinishMachine && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50/60 p-4">
+                    <div className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1.5">End time</div>
+                    <p className="text-[11px] text-red-700 mb-2.5 leading-relaxed">
+                      This does not stop the machine. For emergency purposes only. The transaction will not be rolled back.
+                    </p>
+                    <input
+                      value={endReason}
+                      onChange={(e) => setEndReason(e.target.value)}
+                      placeholder="Reason for ending the time (required)…"
+                      className="w-full h-9 px-3 text-sm rounded-xl border border-red-200 bg-white text-zinc-700 placeholder:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 transition-all"
+                    />
+                    <button
+                      disabled={endReason.trim().length === 0}
+                      onClick={() => {
+                        const why = endReason.trim();
+                        if (!why) return;
+                        onFinishMachine(activeMachine.id, why);
+                        closeSheet();
+                      }}
+                      className={`mt-2.5 h-10 px-4 rounded-xl text-sm font-bold transition-colors ${
+                        endReason.trim().length > 0
+                          ? "bg-red-500 text-white hover:bg-red-600"
+                          : "bg-zinc-100 text-zinc-300 cursor-not-allowed"
+                      }`}
+                    >
+                      End time now
+                    </button>
+                  </div>
                 )}
               </>
             )}
