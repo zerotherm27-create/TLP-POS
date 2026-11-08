@@ -28,14 +28,17 @@ export const requireGateway = (req, res) => {
 export const queueMachineStartCommand = async ({ machineRow, operatorId }) => {
   if (!machineRow.active_job_order_id) return null;
 
-  const orders = await supabaseRequest(`tlp_job_orders?id=eq.${encodeURIComponent(machineRow.active_job_order_id)}&limit=1`);
+  // The order and the product list don't depend on each other, so fetch them together.
+  const [orders, products] = await Promise.all([
+    supabaseRequest(`tlp_job_orders?id=eq.${encodeURIComponent(machineRow.active_job_order_id)}&limit=1`),
+    loadProducts(),
+  ]);
   if (!orders?.length) return null;
 
   const order = fromJobOrderRow(orders[0]);
   const assignment = order.assignments.find((a) => a.machineId === machineRow.id && !a.startedAt && !a.finishedAt);
   if (!assignment) return null;
 
-  const products = await loadProducts();
   const product = products.find((p) => p.id === assignment.productId);
   if (!product) return null;
 

@@ -11,7 +11,7 @@ const ESP_AUTH_HEADER = process.env.ESP_AUTH_HEADER || "";
 const ESP_AUTH_TOKEN = process.env.ESP_AUTH_TOKEN || "";
 const LAUNDRODESK_API_BASE = (process.env.LAUNDRODESK_API_BASE || "").replace(/\/$/, "");
 const GATEWAY_API_TOKEN = process.env.GATEWAY_API_TOKEN || "";
-const GATEWAY_POLL_MS = numberFromEnv("GATEWAY_POLL_MS", 3000);
+const GATEWAY_POLL_MS = numberFromEnv("GATEWAY_POLL_MS", 1000);
 // The ESP controllers call this address back when the physical Start button is pressed (the old CSI Pi
 // received those calls on port 80). 0 = off. To replace the Pi, the Z83 takes over the Pi's IP and uses port 80.
 const CALLBACK_PORT = numberFromEnv("GATEWAY_CALLBACK_PORT", 0);

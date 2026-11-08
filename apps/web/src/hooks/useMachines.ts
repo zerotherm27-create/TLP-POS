@@ -27,9 +27,14 @@ export function useMachines() {
 
   useEffect(() => {
     refresh();
-    const id = setInterval(refresh, 15_000);
-    return () => clearInterval(id);
   }, [refresh]);
+
+  // Quick refresh while a load is on its way to a machine, so "Sending" turns into "Ready" without a long wait.
+  const sending = machines.some((m) => m.activation === "sending");
+  useEffect(() => {
+    const id = setInterval(refresh, sending ? 1_500 : 15_000);
+    return () => clearInterval(id);
+  }, [refresh, sending]);
 
   const patchMachine = useCallback((id: string, patch: Partial<Machine>) => {
     setMachines((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
