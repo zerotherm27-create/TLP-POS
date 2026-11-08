@@ -52,6 +52,8 @@ export interface Machine {
   remainingMinutes?: number;  // total cycle duration (minutes); set at assignment
   startedAt?: string;         // ISO timestamp when the machine accepted the Activate (staff press Start right after); absent = still waiting
   activation?: "sending" | "ready" | "failed"; // where the waiting load stands with the machine's controller
+  queued?: boolean;           // a dryer assigned ahead of time, still waiting for its washer to finish (Activate is locked)
+  waitingOn?: string;         // the washer it waits for, e.g. "Washer 1"
   lastSeenAt?: string;
   cycleCount?: number;
   totalRunMinutes?: number;

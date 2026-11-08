@@ -1,6 +1,6 @@
 import { requireUser } from "../_auth.js";
 import { failMachineStartCommand, queueMachineStartCommand } from "../_gateway.js";
-import { freeMachinePatch, fromMachineRow, recordCycleEnd } from "../_machines.js";
+import { dryerWaitingFor, freeMachinePatch, fromMachineRow, recordCycleEnd } from "../_machines.js";
 import { ensurePost, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -64,6 +64,12 @@ export default async function handler(req, res) {
       // (the gateway reports that through /api/gateway/machines/started).
       if (machine.status !== "running" || machine.started_at) {
         sendJson(res, 400, { ok: false, message: "This machine has no waiting load to activate." });
+        return;
+      }
+      // A dryer queued ahead of time can only start once its washer has finished.
+      const waiting = await dryerWaitingFor(machine);
+      if (waiting) {
+        sendJson(res, 409, { ok: false, message: `Wait for ${waiting.waitingFor} to finish before activating this dryer.` });
         return;
       }
       const pending = await supabaseRequest(`tlp_machine_commands?machine_id=eq.${id}&status=in.(queued,sent)&product_id=neq.__test&limit=1`);

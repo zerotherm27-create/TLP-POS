@@ -69,7 +69,7 @@ export default function MachineDetailSheet({ machine, order, products, threshold
 
   const lastSeenMins = machine.lastSeenAt ? Math.floor((Date.now() - new Date(machine.lastSeenAt).getTime()) / 60000) : null;
   const since = (machine.cycleCount ?? 0) - (machine.lastTubCleanCycle ?? 0);
-  const st = STATUS_STYLE[machine.status];
+  const st = machine.queued ? { label: "Queued", bg: "#fffbeb", fg: "#b45309" } : STATUS_STYLE[machine.status];
 
   return (
     <>
@@ -122,11 +122,13 @@ export default function MachineDetailSheet({ machine, order, products, threshold
           )}
           {running && !started && (
             <div className="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-[12px] font-semibold text-amber-700">
-              {machine.activation === "ready"
-                ? "Activated — waiting for Start on the machine"
-                : machine.activation === "sending"
-                  ? "Sending to the machine…"
-                  : "Assigned — not activated yet"}
+              {machine.queued
+                ? `Queued — waiting for ${machine.waitingOn ?? "the washer"} to finish`
+                : machine.activation === "ready"
+                  ? "Activated — waiting for Start on the machine"
+                  : machine.activation === "sending"
+                    ? "Sending to the machine…"
+                    : "Assigned — not activated yet"}
             </div>
           )}
 

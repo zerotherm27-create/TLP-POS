@@ -18,7 +18,7 @@ interface Stat {
 
 export default function MetricsGrid({ machines, sales, openOrders, isAdmin }: Props) {
   const paidToday = sales.filter((s) => s.status === "paid").reduce((sum, s) => sum + s.totalCents, 0);
-  const inOperation = machines.filter((m) => m.status === "running").length;
+  const inOperation = machines.filter((m) => m.status === "running" && !m.queued).length;
   const available = machines.filter((m) => m.status === "online").length;
   const offline = machines.filter((m) => m.status === "offline").length;
   const paidCount = sales.filter((s) => s.status === "paid").length;

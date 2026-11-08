@@ -78,7 +78,7 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
 
   const washers = machines.filter((m) => m.kind === "washer");
   const dryers = machines.filter((m) => m.kind === "dryer");
-  const running = machines.filter((m) => m.status === "running");
+  const running = machines.filter((m) => m.status === "running" && !m.queued); // a queued dryer isn't running yet
   const available = machines.filter((m) => m.status === "online").length;
   const offline = machines.filter((m) => m.status === "offline").length;
 
@@ -206,7 +206,15 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
             {activeMachine.status === "running" && (
               <>
                 {/* Activate — sends the waiting load to the machine; the timer starts when Start is pressed on it */}
-                {!activeMachine.startedAt && onActivateMachine && (
+                {activeMachine.queued && (
+                  <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4">
+                    <div className="text-sm font-bold text-amber-800">Queued — waiting for {activeMachine.waitingOn ?? "the washer"}</div>
+                    <div className="text-[11px] text-amber-700 mt-0.5">
+                      This dryer is already set for the order. Activate unlocks here as soon as the washer finishes.
+                    </div>
+                  </div>
+                )}
+                {!activeMachine.startedAt && !activeMachine.queued && onActivateMachine && (
                   <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 flex items-center justify-between gap-4">
                     <div>
                       <div className="text-sm font-bold text-emerald-800">

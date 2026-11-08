@@ -1,16 +1,7 @@
 import { requireUser } from "../_auth.js";
 import { loadProducts } from "../_catalog.js";
-import { freeMachinePatch, fromMachineRow } from "../_machines.js";
+import { computeStage, freeMachinePatch, fromMachineRow } from "../_machines.js";
 import { changeOrder, ensurePost, fromJobOrderRow, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
-
-// Stage is driven by the most recently assigned machine kind.
-// Washer assigned → "washing"; dryer assigned (after washer done) → "drying".
-const computeStage = (order, products) => {
-  if (order.assignments.length === 0) return "queued";
-  const last = order.assignments[order.assignments.length - 1];
-  const product = products.find((p) => p.id === last.productId);
-  return product?.machineKind === "dryer" ? "drying" : "washing";
-};
 
 export default async function handler(req, res) {
   try {

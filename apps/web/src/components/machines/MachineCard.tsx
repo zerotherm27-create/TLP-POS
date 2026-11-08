@@ -94,8 +94,13 @@ function RunningCard({ machine }: { machine: Machine }) {
       transition={{ type: "spring", stiffness: 300, damping: 26 }}
       className="relative rounded-2xl overflow-hidden flex flex-col h-full"
       style={{
-        background: "linear-gradient(145deg, #006a7e 0%, #009eb5 55%, #00bcd4 100%)",
-        boxShadow: "0 6px 18px -6px rgba(0,158,181,0.5), 0 1px 4px -1px rgba(0,0,0,0.12)",
+        // A queued dryer (waiting for its washer) is grey, so it isn't mistaken for a machine that is running.
+        background: machine.queued
+          ? "linear-gradient(145deg, #52525b 0%, #71717a 55%, #a1a1aa 100%)"
+          : "linear-gradient(145deg, #006a7e 0%, #009eb5 55%, #00bcd4 100%)",
+        boxShadow: machine.queued
+          ? "0 6px 18px -6px rgba(82,82,91,0.45), 0 1px 4px -1px rgba(0,0,0,0.12)"
+          : "0 6px 18px -6px rgba(0,158,181,0.5), 0 1px 4px -1px rgba(0,0,0,0.12)",
       }}
     >
       <div className="absolute inset-0 pointer-events-none" style={{
@@ -148,7 +153,7 @@ function RunningCard({ machine }: { machine: Machine }) {
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.12)" }}>
               {machine.kind === "washer" ? <MiniWhirl /> : <MiniWind />}
             </div>
-            <span className="text-white/45 text-[8px] sm:text-[9px] font-semibold uppercase tracking-widest">Pending</span>
+            <span className="text-white/45 text-[8px] sm:text-[9px] font-semibold uppercase tracking-widest">{machine.queued ? "Queued" : "Pending"}</span>
           </motion.div>
         )}
       </div>

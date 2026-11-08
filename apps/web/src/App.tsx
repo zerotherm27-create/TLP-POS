@@ -170,14 +170,16 @@ export default function App() {
         const data = await callApi("/api/orders/assign", { orderId, machineId, productId, lineId, durationMinutes });
         if (data.jobOrder) {
           updateOrder(data.jobOrder);
-          // Once every load of this kind (washers or dryers) has a machine, go to the Machines tab to activate it.
-          // Orders with more loads stay put so the next one can be assigned.
+          // Once every load of the order (washers and dryers) has a machine, go to the Machines tab and open the washer,
+          // the first thing to activate (its dryer waits there, queued). Until then stay on Orders so the next load can be picked.
           const order = data.jobOrder as JobOrder;
-          const kind = products.find((p) => p.id === productId)?.machineKind;
-          const remaining = order.services.some(
-            (s) => products.find((p) => p.id === s.productId)?.machineKind === kind && !order.assignments.some((a) => a.lineId === s.lineId)
-          );
-          if (!remaining) jumpTo = machineId;
+          const remaining = order.services.some((s) => !order.assignments.some((a) => a.lineId === s.lineId));
+          if (!remaining) {
+            const washer = order.assignments.find(
+              (a) => products.find((p) => p.id === a.productId)?.machineKind === "washer" && !a.startedAt && !a.finishedAt
+            );
+            jumpTo = washer?.machineId ?? machineId;
+          }
         }
       } catch (e) {
         showNotice(e instanceof Error ? e.message : "Couldn't assign the machine.");

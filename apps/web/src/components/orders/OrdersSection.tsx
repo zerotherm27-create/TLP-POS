@@ -164,7 +164,6 @@ function DetailPanel({
       setExtraBusy(false);
     }
   };
-  const [confirmFinish, setConfirmFinish] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
   const addLoad = async (productId: string) => {
@@ -187,18 +186,11 @@ function DetailPanel({
 
   const assignedLineIds = new Set(order.assignments.map((a) => a.lineId));
 
-  // All washers done when none of their machines is still running
+  // The order's washer loads (a dryer can be chosen right away: it queues behind its washer and unlocks when the wash ends).
   const washerAssignments = order.assignments.filter((a) => {
     const p = products.find((p) => p.id === a.productId);
     return p?.machineKind === "washer";
   });
-  const anyWasherRunning = washerAssignments.some(
-    (a) => machines.find((m) => m.id === a.machineId)?.status === "running"
-  );
-  const washersDone = washerAssignments.length === 0 || !anyWasherRunning;
-  // A washer load that hasn't been given a machine yet: its dryer is chosen after it (the washer list already suggests the pair).
-  const washerUnassigned = services.some(({ line, product }) => product?.machineKind === "washer" && !assignedLineIds.has(line.lineId));
-  const dryersHeld = !washersDone || washerUnassigned;
 
   // Each load has a machine size: regular, or large (the bigger W5 + D5). Offer only that size unless overridden.
   const machineTier = (m: Machine) => (m.tier === "titan" ? "titan" : "giant");
@@ -210,12 +202,7 @@ function DetailPanel({
   const washerLoads = services.filter(({ product }) => product?.machineKind === "washer");
   const addLoadSize: "giant" | "titan" = washerLoads.length > 0 && washerLoads.every(({ line }) => line.tier === "titan") ? "titan" : "giant";
 
-  const unassignedServices = services.filter(({ line, product }) => {
-    if (assignedLineIds.has(line.lineId)) return false;
-    // Hold dryer assignment until all washers are done
-    if (product?.machineKind === "dryer" && dryersHeld) return false;
-    return true;
-  });
+  const unassignedServices = services.filter(({ line }) => !assignedLineIds.has(line.lineId));
   const canAssign = isActive && unassignedServices.length > 0 && onAssign;
 
   // Load numbers per productId (for "Load 1 / Load 2" labels on multi-load orders)
@@ -525,44 +512,6 @@ function DetailPanel({
             </div>
           </div>
         )}
-
-        {/* Dryer loads waiting for the washer */}
-        {isActive && dryersHeld && (() => {
-          const heldDryers = services.filter(({ line, product }) => product?.machineKind === "dryer" && !assignedLineIds.has(line.lineId));
-          if (heldDryers.length === 0) return null;
-          const runningWashers = washerAssignments
-            .map((a) => machines.find((m) => m.id === a.machineId))
-            .filter((m): m is Machine => !!m && m.status === "running");
-          return (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 flex flex-col gap-2">
-              <div className="text-[12px] font-semibold text-amber-800">
-                {heldDryers.length} dryer {heldDryers.length === 1 ? "load is" : "loads are"} {washerUnassigned ? "chosen after the washer" : "waiting for the washer to finish"}
-              </div>
-              <div className="text-[11px] text-amber-700">
-                {washerUnassigned
-                  ? "Pick the washer above first. Its matching dryer (for example W2 + D2) is suggested with it, and the dryer unlocks when the wash ends."
-                  : <>{runningWashers.map((m) => `${m.publicCode} ${m.startedAt ? "is washing" : "hasn't been started yet"}`).join(" · ")}.
-                The dryer unlocks by itself when the wash timer ends.</>}
-              </div>
-              {onFinishMachine && runningWashers.length > 0 && (confirmFinish ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-amber-800">Washer finished?</span>
-                  <button
-                    onClick={async () => { setConfirmFinish(false); for (const m of runningWashers) await onFinishMachine(m.id); }}
-                    className="h-8 px-3 rounded-xl text-[11px] font-bold text-white"
-                    style={{ background: "#009eb5" }}
-                  >Yes, unlock dryer</button>
-                  <button onClick={() => setConfirmFinish(false)} className="h-8 px-3 rounded-xl text-[11px] font-semibold text-zinc-500 bg-white border border-zinc-200">No</button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setConfirmFinish(true)}
-                  className="self-start h-8 px-3 rounded-xl text-[11px] font-bold text-amber-800 bg-white border border-amber-300 hover:bg-amber-100 transition-colors"
-                >Washer is done — unlock dryer</button>
-              ))}
-            </div>
-          );
-        })()}
 
         {/* Assign machine */}
         {canAssign && (
