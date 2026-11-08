@@ -35,6 +35,9 @@ const spring = { type: "spring" as const, stiffness: 320, damping: 30 };
 
 export default function App() {
   const [section, setSection] = useState<Section>("overview");
+  const sectionRef = useRef(section);
+  sectionRef.current = section;
+  const [openMachineId, setOpenMachineId] = useState<string | null>(null);
   const { role, isAdmin, signOut } = useRole();
   const { email } = useAuth();
 
@@ -160,6 +163,7 @@ export default function App() {
 
   const handleAssign = (orderId: string, machineId: string, productId: string, lineId: string) =>
     enqueue(async () => {
+      let jumpTo: string | null = null;
       try {
         const durationMinutes = products.find((p) => p.id === productId)?.durationMinutes;
         const data = await callApi("/api/orders/assign", { orderId, machineId, productId, lineId, durationMinutes });
@@ -172,12 +176,17 @@ export default function App() {
           const remaining = order.services.some(
             (s) => products.find((p) => p.id === s.productId)?.machineKind === kind && !order.assignments.some((a) => a.lineId === s.lineId)
           );
-          if (!remaining) setSection((s) => (s === "orders" ? "machines" : s));
+          if (!remaining) jumpTo = machineId;
         }
       } catch (e) {
         showNotice(e instanceof Error ? e.message : "Couldn't assign the machine.");
       }
       await refreshMachines();
+      // Jump after the machine list is fresh so the popup opens already showing the new load (Activate within reach).
+      if (jumpTo && sectionRef.current === "orders") {
+        setSection("machines");
+        setOpenMachineId(jumpTo);
+      }
     });
 
   const handleMarkCleaned = (machineId: string) => {
@@ -328,6 +337,8 @@ export default function App() {
                   onUnassign={handleUnassign}
                   onAssign={handleAssign}
                   onActivateMachine={handleActivateMachine}
+                  openMachineId={openMachineId}
+                  onOpenedMachine={() => setOpenMachineId(null)}
                   />
                 </div>
               )}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MachineCard from "./MachineCard";
 import MachineDetailSheet from "./MachineDetailSheet";
@@ -52,11 +52,23 @@ interface Props {
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
   onActivateMachine?: (machineId: string) => void;
+  /** Open this machine's popup as soon as the board shows (set after a machine is assigned). */
+  openMachineId?: string | null;
+  onOpenedMachine?: () => void;
 }
 
-export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, products, onUnassign, onAssign, onActivateMachine }: Props) {
-  const [activeMachine, setActiveMachine] = useState<Machine | null>(null);
+export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, products, onUnassign, onAssign, onActivateMachine, openMachineId, onOpenedMachine }: Props) {
+  // Keep only the id and read the machine from the live list, so the popup follows refreshes.
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeMachine = machines.find((m) => m.id === activeId) ?? null;
   const [sheetReason, setSheetReason] = useState("");
+
+  useEffect(() => {
+    if (!openMachineId) return;
+    setActiveId(openMachineId);
+    setSheetReason("");
+    onOpenedMachine?.();
+  }, [openMachineId, onOpenedMachine]);
 
   const washers = machines.filter((m) => m.kind === "washer");
   const dryers = machines.filter((m) => m.kind === "dryer");
@@ -71,12 +83,12 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
   const dueCount = machines.filter(isDue).length;
 
   const handleCardSelect = (m: Machine) => {
-    setActiveMachine(m);
+    setActiveId(m.id);
     setSheetReason("");
   };
 
   const closeSheet = () => {
-    setActiveMachine(null);
+    setActiveId(null);
     setSheetReason("");
   };
 
