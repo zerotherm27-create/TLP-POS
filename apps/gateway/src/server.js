@@ -206,7 +206,7 @@ async function testConnection(request) {
     const ms = Date.now() - started;
     console.log(`${new Date().toISOString()} test ${espIp}/details -> ${response.status} in ${ms} ms`);
     return response.ok
-      ? { ok: true, response: `${name} answered in ${ms} ms.` }
+      ? { ok: true, response: `${name} is connected.` }
       : { ok: false, response: `${name} replied with HTTP ${response.status}.` };
   } catch (error) {
     console.log(`${new Date().toISOString()} test ${espIp}/details failed: ${error instanceof Error ? error.message : error}`);

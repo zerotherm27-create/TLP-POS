@@ -26,7 +26,7 @@ export default async function handler(req, res) {
         return;
       }
       const id = encodeURIComponent(String(body.commandId));
-      const rows = await supabaseRequest(`tlp_machine_commands?id=eq.${id}&product_id=eq.${TEST_PRODUCT}&select=status,result,requested_at&limit=1`);
+      const rows = await supabaseRequest(`tlp_machine_commands?id=eq.${id}&product_id=eq.${TEST_PRODUCT}&select=status,result,request,requested_at&limit=1`);
       const row = rows?.[0];
       if (!row) {
         sendJson(res, 404, { ok: false, message: "Test not found." });
@@ -50,7 +50,10 @@ export default async function handler(req, res) {
         ok: true,
         status: "done",
         connected: row.status === "succeeded",
-        message: String(row.result?.response ?? (row.status === "succeeded" ? "Connected." : "Not connected.")).slice(0, 300),
+        message:
+          row.status === "succeeded"
+            ? `${row.request?.machine?.name ?? "The machine"} is connected.`
+            : String(row.result?.response ?? "Not connected.").slice(0, 300),
       });
       return;
     }
