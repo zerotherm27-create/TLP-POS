@@ -25,7 +25,7 @@ import { usePackages } from "./hooks/usePackages";
 import { useSettings } from "./hooks/useSettings";
 import { useMachines } from "./hooks/useMachines";
 import { ordersToSales, isToday } from "./lib/sales";
-import { computeAlerts, type Alert } from "@tlp/shared";
+import { computeAlerts, pairedFreeDryer, type Alert } from "@tlp/shared";
 import type { JobOrder } from "@tlp/shared";
 import type { NewOrderPayload } from "./components/overview/JobOrderForm";
 import {
@@ -170,15 +170,41 @@ export default function App() {
         const data = await callApi("/api/orders/assign", { orderId, machineId, productId, lineId, durationMinutes });
         if (data.jobOrder) {
           updateOrder(data.jobOrder);
-          // Once every load of the order (washers and dryers) has a machine, go to the Machines tab and open the washer,
-          // the first thing to activate (its dryer waits there, queued). Until then stay on Orders so the next load can be picked.
+          // Once every washer load of the order has a machine, go to the Machines tab and open it to activate. Orders with more
+          // washer loads stay put so the next one can be assigned. A dryer never jumps on an order that has a washer: it is queued
+          // behind its washer (choose it on the Orders page), and only a dry-only order opens its dryer.
           const order = data.jobOrder as JobOrder;
-          const remaining = order.services.some((s) => !order.assignments.some((a) => a.lineId === s.lineId));
-          if (!remaining) {
-            const washer = order.assignments.find(
-              (a) => products.find((p) => p.id === a.productId)?.machineKind === "washer" && !a.startedAt && !a.finishedAt
+          const kindOf = (pid: string) => products.find((p) => p.id === pid)?.machineKind;
+          const kind = kindOf(productId);
+          const hasWash = order.services.some((s) => kindOf(s.productId) === "washer");
+          const remaining = order.services.some((s) => kindOf(s.productId) === kind && !order.assignments.some((a) => a.lineId === s.lineId));
+          if (!remaining && (kind === "washer" || !hasWash)) jumpTo = machineId;
+
+          // Queue the paired dryer right away (W1 with D1). It waits there and can't be activated until its washer finishes.
+          // If the pair is busy, offline or a different size, nothing is picked and the dryer can be chosen by hand.
+          if (kind === "washer") {
+            const washerMachine = machines.find((m) => m.id === machineId);
+            const dryerLine = order.services.find(
+              (s) => kindOf(s.productId) === "dryer" && !order.assignments.some((a) => a.lineId === s.lineId)
             );
-            jumpTo = washer?.machineId ?? machineId;
+            const dryer = washerMachine && dryerLine ? pairedFreeDryer(machines, washerMachine) : undefined;
+            if (washerMachine && dryer && dryerLine) {
+              try {
+                const queued = await callApi("/api/orders/assign", {
+                  orderId,
+                  machineId: dryer.id,
+                  productId: dryerLine.productId,
+                  lineId: dryerLine.lineId,
+                  durationMinutes: products.find((p) => p.id === dryerLine.productId)?.durationMinutes,
+                });
+                if (queued.jobOrder) {
+                  updateOrder(queued.jobOrder);
+                  showNotice(`${dryer.name} is queued for this order. It unlocks when ${washerMachine.name} finishes.`, "info");
+                }
+              } catch {
+                /* the dryer can still be picked by hand */
+              }
+            }
           }
         }
       } catch (e) {

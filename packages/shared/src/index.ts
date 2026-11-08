@@ -179,7 +179,7 @@ export const formatPeso = (cents: number) =>
   }).format(cents / 100);
 
 export { getFulfillmentStageLabel, getOrderSourceLabel, isImportedOrder } from "./orderWorkflow.js";
-export { rankMachines, rankWasherPairs, planDryers, machineNumber, computeAlerts, loadsSinceClean, isTubDue, ALERT_LIMITS } from "./insights.js";
+export { rankMachines, rankWasherPairs, planDryers, pairedFreeDryer, machineNumber, computeAlerts, loadsSinceClean, isTubDue, ALERT_LIMITS } from "./insights.js";
 export type { Alert, AlertKind, MachineSuggestion, WasherPair, DryerChoice, DryerPlan } from "./insights.js";
 export { resolveWash, EXTRA_WASH_STEPS } from "./extraWash.js";
 export type { ResolvedWash } from "./extraWash.js";

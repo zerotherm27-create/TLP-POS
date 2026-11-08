@@ -53,6 +53,16 @@ export function rankMachines(machines: Machine[], kind: "washer" | "dryer", tubT
 /** "W3" -> "3", "D3" -> "3". Washers and dryers with the same number are a pair (W3 goes with D3). */
 export const machineNumber = (m: Machine) => m.publicCode.replace(/\D+/g, "");
 
+/** The dryer to queue with this washer: the free one with the same number (W1 -> D1) and the same machine size. Never a different dryer. */
+export const pairedFreeDryer = (machines: Machine[], washer: Machine): Machine | undefined =>
+  machines.find(
+    (d) =>
+      d.kind === "dryer" &&
+      d.status === "online" &&
+      machineNumber(d) === machineNumber(washer) &&
+      (d.tier ?? "giant") === (washer.tier ?? "giant")
+  );
+
 export interface WasherPair {
   washer: Machine;
   dryer?: Machine; // the dryer with the same number, if one exists

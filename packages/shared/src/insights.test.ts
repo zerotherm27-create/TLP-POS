@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { Machine, JobOrder, Product } from "./index.js";
-import { rankMachines, rankWasherPairs, planDryers, machineNumber, computeAlerts, isTubDue } from "./insights.js";
+import { rankMachines, rankWasherPairs, planDryers, pairedFreeDryer, machineNumber, computeAlerts, isTubDue } from "./insights.js";
 
 const NOW = Date.parse("2026-10-07T10:00:00Z");
 const ago = (min: number) => new Date(NOW - min * 60000).toISOString();
@@ -187,4 +187,26 @@ test("dryer plan: two washers on one order suggest their own two dryers", () => 
   assert.equal(plan.choices[0].suggested, true);
   assert.equal(plan.choices[1].suggested, false); // one suggestion at a time; after D1 is used D2 becomes the suggestion
   assert.deepEqual(plan.pairCodes, ["D1", "D2"]);
+});
+
+test("auto-queue picks the free dryer with the washer's number, W1 with D1 and W2 with D2", () => {
+  const ms = [w(1, { status: "running" }), w(2, { status: "running" }), d(1), d(2), d(3)];
+  assert.equal(pairedFreeDryer(ms, ms[0])?.publicCode, "D1");
+  assert.equal(pairedFreeDryer(ms, ms[1])?.publicCode, "D2");
+});
+
+test("auto-queue never crosses to another dryer when the paired one is busy, offline or missing", () => {
+  const busy = [w(1, { status: "running" }), d(1, { status: "running" }), d(2)];
+  assert.equal(pairedFreeDryer(busy, busy[0]), undefined);
+  const offline = [w(1, { status: "running" }), d(1, { status: "offline" }), d(2)];
+  assert.equal(pairedFreeDryer(offline, offline[0]), undefined);
+  const missing = [w(4, { status: "running" }), d(1), d(2)];
+  assert.equal(pairedFreeDryer(missing, missing[0]), undefined);
+});
+
+test("auto-queue keeps the machine size: a large washer only pairs with the large dryer", () => {
+  const ms = [w(5, { status: "running", tier: "titan" }), d(5, { tier: "giant" })];
+  assert.equal(pairedFreeDryer(ms, ms[0]), undefined);
+  const both = [w(5, { status: "running", tier: "titan" }), d(5, { tier: "titan" })];
+  assert.equal(pairedFreeDryer(both, both[0])?.publicCode, "D5");
 });
