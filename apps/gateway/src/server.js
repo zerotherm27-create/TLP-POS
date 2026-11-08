@@ -228,13 +228,14 @@ async function realActivate(request) {
   }
 }
 
-// Pulse counts measured on Washer 1 on 2026-11-01 (the old CSI app's counts were one lower):
-// 3 pulses arms the 35 min (Warm) program with the Start LED blinking; pulses 4 and 5 also give 35,
-// and extra pulses while armed or running are ignored. 1 pulse shows 10 and 2 pulses show 5, but neither
-// arms Start. 45 min therefore also sends 3 pulses; staff add the extra 10 min with the machine's own
-// Add Super Wash button (each press adds 5 min).
+// The LG washers count each pulse as 5 credit and run the course currently selected on the machine
+// once the credit covers its price (setup prices: Hot 15, Warm 10, Cold 10, Delicates 5).
+// Verified 2026-11-08 on Washers 1 and 3: after a power cycle Hot is selected, so 3 pulses run the 35 min
+// program; 45 min is the Cold course, which costs 2 pulses but only runs if staff pressed COLD on the washer
+// first (otherwise Hot is still selected and 2 pulses just show the 5 credit still missing). The controller
+// cannot press course buttons, so the POS tells staff which button to press (MachineBoard).
 // Dryers use minutes / 10 until each length is verified on the machine.
-const WASHER_PULSES = { 35: 3, 45: 3 };
+const WASHER_PULSES = { 35: 3, 45: 2 };
 
 function pulsesFor(request) {
   const minutes = request.product.durationMinutes;

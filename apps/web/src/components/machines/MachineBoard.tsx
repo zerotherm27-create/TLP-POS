@@ -198,6 +198,15 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
                               ? "The machine didn't answer. Check it is on, then try again."
                               : "Sends this order to the machine. Then press Start on the machine itself."}
                       </div>
+                      {activeMachine.kind === "washer" && activeMachine.activation !== "ready" && (
+                        <div className="text-[11px] font-bold text-amber-700 mt-1.5">
+                          {activeMachine.remainingMinutes === 45
+                            ? "First press COLD on the washer (the display shows 10), then Activate."
+                            : activeMachine.remainingMinutes === 35
+                              ? "Check HOT is selected on the washer (it is after switching on), then Activate."
+                              : null}
+                        </div>
+                      )}
                     </div>
                     <button
                       disabled={activeMachine.activation === "sending"}
