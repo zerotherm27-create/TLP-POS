@@ -5,6 +5,7 @@ const HOST = process.env.GATEWAY_HOST || "127.0.0.1";
 const GATEWAY_ID = process.env.GATEWAY_ID || "z83-local";
 const ESP_ACTIVATION_PATH = normalizePath(process.env.ESP_ACTIVATION_PATH || "/activate");
 const ESP_TIMEOUT_MS = numberFromEnv("ESP_TIMEOUT_MS", 30000);
+const ESP_TEST_TIMEOUT_MS = numberFromEnv("ESP_TEST_TIMEOUT_MS", 5000);
 // Washers and dryers need the short 60 ms signal the old CSI Pi sent; 500 credits time but leaves Start dead.
 const ESP_PUSH_DELAY_MS = numberFromEnv("ESP_PUSH_DELAY_MS", 60);
 const ESP_AUTH_HEADER = process.env.ESP_AUTH_HEADER || "";
@@ -141,6 +142,13 @@ async function pollForCommand() {
   const body = await response.json();
   if (!body.command) return;
 
+  // A connection test only reads the controller's status page; it never sends credit or starts a timer.
+  if (body.command.type === "test") {
+    const tested = await testConnection(body.command);
+    await completeCommand(body.command.commandId, tested.ok, tested.response);
+    return;
+  }
+
   const result = body.command.mode === "mock"
     ? mockActivate(body.command)
     : await realActivate(body.command);
@@ -166,6 +174,50 @@ async function pollForCommand() {
     } catch (error) {
       console.error("Starting the timer failed:", error instanceof Error ? error.message : error);
     }
+  }
+}
+
+async function completeCommand(commandId, ok, response) {
+  await fetch(`${LAUNDRODESK_API_BASE}/api/gateway/commands/complete`, {
+    method: "POST",
+    headers: {
+      ...gatewayHeaders(),
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ commandId, ok, response })
+  });
+}
+
+// Reads the controller's /details page (the same one used when checking a machine by hand). Sends no credit.
+async function testConnection(request) {
+  const name = String(request.machine?.name ?? "The machine");
+  const espIp = String(request.machine?.espIp ?? "").trim();
+  if (!/^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(espIp)) {
+    return { ok: false, response: `${name} has no valid controller address.` };
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ESP_TEST_TIMEOUT_MS);
+  const started = Date.now();
+  try {
+    const headers = {};
+    if (ESP_AUTH_HEADER && ESP_AUTH_TOKEN) headers[ESP_AUTH_HEADER] = ESP_AUTH_TOKEN;
+    const response = await fetch(`http://${espIp}/details`, { method: "GET", headers, signal: controller.signal });
+    await response.text().catch(() => "");
+    const ms = Date.now() - started;
+    console.log(`${new Date().toISOString()} test ${espIp}/details -> ${response.status} in ${ms} ms`);
+    return response.ok
+      ? { ok: true, response: `${name} answered in ${ms} ms.` }
+      : { ok: false, response: `${name} replied with HTTP ${response.status}.` };
+  } catch (error) {
+    console.log(`${new Date().toISOString()} test ${espIp}/details failed: ${error instanceof Error ? error.message : error}`);
+    return {
+      ok: false,
+      response: error instanceof Error && error.name === "AbortError"
+        ? `${name} did not answer within ${Math.round(ESP_TEST_TIMEOUT_MS / 1000)} seconds. Check it is switched on.`
+        : `Could not reach ${name}. Check it is switched on and on the network.`
+    };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

@@ -85,6 +85,21 @@ export const loadLargeLoadKg = async () => {
   return 10;
 };
 
+/**
+ * Whether orders pushed from LaundroBot are accepted. The Admin on/off switch (saved setting) decides;
+ * until it has been used once, the old LAUNDRODESK_IMPORT_ENABLED variable still applies.
+ */
+export const importEnabledFrom = (saved) => (typeof saved === "boolean" ? saved : process.env.LAUNDRODESK_IMPORT_ENABLED === "true");
+
+export const loadImportEnabled = async () => {
+  try {
+    const rows = await supabaseRequest("tlp_settings?key=eq.orderImportEnabled&select=value&limit=1");
+    return importEnabledFrom(rows?.[0]?.value);
+  } catch {
+    return importEnabledFrom(undefined);
+  }
+};
+
 /** Your packages (id, name, services), used to turn recognised LaundroBot orders into package loads. */
 export const loadPackages = async () => {
   try {

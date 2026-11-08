@@ -11,6 +11,7 @@ import PackageBuilder from "./components/admin/PackageBuilder";
 import InsightsPanel from "./components/admin/InsightsPanel";
 import ExtraRatesCard from "./components/admin/ExtraRatesCard";
 import LargeLoadCard from "./components/admin/LargeLoadCard";
+import OrderImportCard from "./components/admin/OrderImportCard";
 import AlertsCard from "./components/overview/AlertsCard";
 import ProductManager from "./components/admin/ProductManager";
 import OrdersSection from "./components/orders/OrdersSection";
@@ -54,7 +55,7 @@ export default function App() {
     if (tourKey) { try { localStorage.setItem(tourKey, "1"); } catch { /* private mode: it will show again next time */ } }
   };
   const { machines, refreshMachines, patchMachine } = useMachines();
-  const { products, tubCleanThreshold, extraRates, largeLoadKg, settingsError, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg } = useSettings();
+  const { products, tubCleanThreshold, extraRates, largeLoadKg, orderImportEnabled, settingsError, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg, setOrderImportEnabled } = useSettings();
   const { packages, error: packagesError, createPackage, updatePackage, removePackage, movePackage } = usePackages();
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines" | "insights">("programs");
   const [showCreateOrder, setShowCreateOrder] = useState(false);
@@ -217,6 +218,18 @@ export default function App() {
     });
   };
 
+  // Asks the Z83 gateway to reach the machine's controller (it only reads, never sends credit), then waits for its answer.
+  // Not queued behind other machine actions, so a test never delays an Activate.
+  const handleTestMachine = async (machineId: string): Promise<{ ok: boolean; message: string }> => {
+    const started = await callApi("/api/machines/test", { machineId });
+    for (let i = 0; i < 25; i += 1) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const r = await callApi("/api/machines/test", { commandId: started.commandId });
+      if (r.status === "done") return { ok: !!r.connected, message: String(r.message ?? "") };
+    }
+    return { ok: false, message: "No answer yet. Check that the Z83 gateway is running." };
+  };
+
   const handleSetOffline = (machineId: string, offline: boolean) => {
     patchMachine(machineId, { status: offline ? "offline" : "online" });
     return enqueue(async () => {
@@ -337,6 +350,7 @@ export default function App() {
                   onUnassign={handleUnassign}
                   onAssign={handleAssign}
                   onActivateMachine={handleActivateMachine}
+                  onTestMachine={handleTestMachine}
                   onFinishMachine={handleFinishMachine}
                   openMachineId={openMachineId}
                   onOpenedMachine={() => setOpenMachineId(null)}
@@ -375,6 +389,7 @@ export default function App() {
                   {adminTab === "packages" && (
                     <div className="flex flex-col gap-5">
                       {settingsError && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{settingsError}</p>}
+                      <OrderImportCard enabled={orderImportEnabled} onChange={setOrderImportEnabled} />
                       <ExtraRatesCard rates={extraRates} onSave={setExtraRates} />
                       <LargeLoadCard kg={largeLoadKg} onSave={setLargeLoadKg} />
                       <PackageBuilder products={products} packages={packages} error={packagesError} onCreate={createPackage} onUpdate={updatePackage} onRemove={removePackage} onMove={movePackage} />

@@ -66,7 +66,7 @@ export default async function handler(req, res) {
         sendJson(res, 400, { ok: false, message: "This machine has no waiting load to activate." });
         return;
       }
-      const pending = await supabaseRequest(`tlp_machine_commands?machine_id=eq.${id}&status=in.(queued,sent)&limit=1`);
+      const pending = await supabaseRequest(`tlp_machine_commands?machine_id=eq.${id}&status=in.(queued,sent)&product_id=neq.__test&limit=1`);
       if (pending?.length) {
         sendJson(res, 409, { ok: false, message: "This machine is already being activated." });
         return;

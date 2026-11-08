@@ -15,6 +15,7 @@ export function useSettings() {
   const [tubCleanThreshold, setThresholdState] = useState(DEFAULT_THRESHOLD);
   const [extraRates, setExtraRatesState] = useState<ExtraRates>(NO_EXTRA_RATES);
   const [largeLoadKg, setLargeLoadKgState] = useState(10);
+  const [orderImportEnabled, setOrderImportEnabledState] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -25,6 +26,7 @@ export function useSettings() {
         if (Array.isArray(data.settings.products)) setProductsState(data.settings.products);
         if (Number.isInteger(data.settings.tubCleanThreshold)) setThresholdState(data.settings.tubCleanThreshold);
         if (typeof data.settings.largeLoadKg === "number" && data.settings.largeLoadKg > 0) setLargeLoadKgState(data.settings.largeLoadKg);
+        if (typeof data.settings.orderImportEnabled === "boolean") setOrderImportEnabledState(data.settings.orderImportEnabled);
         const r = data.settings.extraRates;
         if (r && Number.isInteger(r.washCentsPer10) && Number.isInteger(r.dryCentsPer10)) setExtraRatesState(r);
         setError(null);
@@ -96,5 +98,17 @@ export function useSettings() {
     }
   };
 
-  return { products, tubCleanThreshold, extraRates, largeLoadKg, settingsError: error, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg };
+  const setOrderImportEnabled = async (on: boolean) => {
+    const before = orderImportEnabled;
+    setOrderImportEnabledState(on);
+    try {
+      await save("orderImportEnabled", on);
+      setError(null);
+    } catch (e) {
+      setOrderImportEnabledState(before);
+      setError(e instanceof Error ? e.message : "Couldn't change the LaundroBot order switch.");
+    }
+  };
+
+  return { products, tubCleanThreshold, extraRates, largeLoadKg, orderImportEnabled, settingsError: error, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg, setOrderImportEnabled };
 }

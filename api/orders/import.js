@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { buildOrderBundle, mapLaundrobotOrder, persistOrderBundle } from "../_laundrobot.js";
-import { loadLargeLoadKg, loadPackages } from "../_catalog.js";
+import { loadImportEnabled, loadLargeLoadKg, loadPackages } from "../_catalog.js";
 import { ensurePost, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 const _require = createRequire(import.meta.url);
@@ -33,9 +33,9 @@ export default async function handler(req, res) {
     if (!ensurePost(req, res)) return;
     if (!requireImportToken(req, res)) return;
 
-    // Imports are paused unless LAUNDRODESK_IMPORT_ENABLED=true. 503 (not 200) so LaundroBot
+    // Imports are paused while the Admin switch is Off. 503 (not 200) so LaundroBot
     // treats the order as not delivered and the Send button can retry once imports are back on.
-    if (process.env.LAUNDRODESK_IMPORT_ENABLED !== "true") {
+    if (!(await loadImportEnabled())) {
       sendJson(res, 503, { ok: false, paused: true, message: "Order import is paused." });
       return;
     }

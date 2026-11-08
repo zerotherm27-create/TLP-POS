@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { resolveWash } from "./_catalog.js";
+import { importEnabledFrom, resolveWash } from "./_catalog.js";
 
 const P = (id, kind, min, extra = {}) => ({ id, machineKind: kind, name: `${min} min`, durationMinutes: min, priceCents: min * 100, pulse: 1, pushDelayMs: 0, ...extra });
 const products = [P("w10", "washer", 10), P("w35", "washer", 35), P("w45", "washer", 45, { pulse: 2 }), P("d10", "dryer", 10), P("d45", "dryer", 45)];
@@ -68,4 +68,20 @@ test("larger (titan) machines can have their own extra-time rate, falling back t
   assert.equal(extraChargeCents(rates, "washer", 20, "titan"), 6000);
   assert.equal(extraChargeCents(rates, "dryer", 10, "titan"), 1500); // titan dry rate not set -> regular rate
   assert.equal(extraChargeCents({ washCentsPer10: 2000, dryCentsPer10: 1500 }, "washer", 10, "titan"), 2000);
+});
+
+test("the Admin import switch wins; until it is used the old environment variable applies", () => {
+  const before = process.env.LAUNDRODESK_IMPORT_ENABLED;
+  try {
+    process.env.LAUNDRODESK_IMPORT_ENABLED = "true";
+    assert.equal(importEnabledFrom(undefined), true);
+    assert.equal(importEnabledFrom(false), false); // switched Off in the app, even though the variable says true
+    delete process.env.LAUNDRODESK_IMPORT_ENABLED;
+    assert.equal(importEnabledFrom(undefined), false);
+    assert.equal(importEnabledFrom(true), true);
+    assert.equal(importEnabledFrom("yes"), false); // not a real switch value, falls back to the variable
+  } finally {
+    if (before === undefined) delete process.env.LAUNDRODESK_IMPORT_ENABLED;
+    else process.env.LAUNDRODESK_IMPORT_ENABLED = before;
+  }
 });

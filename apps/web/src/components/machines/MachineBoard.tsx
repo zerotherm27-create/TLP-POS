@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MachineCard from "./MachineCard";
 import MachineDetailSheet from "./MachineDetailSheet";
+import ConnectionTest from "./ConnectionTest";
 import type { Machine, JobOrder, Product } from "@tlp/shared";
 import { WashingMachine, Wind, Zap, CheckCircle2, WifiOff, AlertTriangle, RotateCcw, ArrowLeftRight, Play } from "lucide-react";
 
@@ -52,6 +53,7 @@ interface Props {
   onUnassign?: (orderId: string, lineId: string, machineId: string, reason: string, mode: "rework" | "reassign") => void;
   onAssign?: (orderId: string, machineId: string, productId: string, lineId: string) => void;
   onActivateMachine?: (machineId: string) => void;
+  onTestMachine?: (machineId: string) => Promise<{ ok: boolean; message: string }>;
   /** Ends the time in the POS only (emergency). The reason is required by the popup. */
   onFinishMachine?: (machineId: string, reason?: string) => Promise<void> | void;
   /** Open this machine's popup as soon as the board shows (set after a machine is assigned). */
@@ -59,7 +61,7 @@ interface Props {
   onOpenedMachine?: () => void;
 }
 
-export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, products, onUnassign, onAssign, onActivateMachine, onFinishMachine, openMachineId, onOpenedMachine }: Props) {
+export default function MachineBoard({ machines, isAdmin, threshold = 50, onMarkCleaned, orders, products, onUnassign, onAssign, onActivateMachine, onTestMachine, onFinishMachine, openMachineId, onOpenedMachine }: Props) {
   // Keep only the id and read the machine from the live list, so the popup follows refreshes.
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeMachine = machines.find((m) => m.id === activeId) ?? null;
@@ -198,6 +200,9 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
             threshold={threshold}
             onClose={closeSheet}
           >
+            {onTestMachine && (
+              <ConnectionTest machineId={activeMachine.id} machineName={activeMachine.name} onTest={onTestMachine} />
+            )}
             {activeMachine.status === "running" && (
               <>
                 {/* Activate — sends the waiting load to the machine; the timer starts when Start is pressed on it */}

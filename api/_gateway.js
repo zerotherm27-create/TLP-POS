@@ -105,7 +105,7 @@ export const loadActivations = async (rows) => {
   if (!waiting.length) return {};
   let commands;
   try {
-    commands = await supabaseRequest("tlp_machine_commands?select=machine_id,status,request&order=requested_at.desc&limit=60");
+    commands = await supabaseRequest("tlp_machine_commands?select=machine_id,status,request&product_id=neq.__test&order=requested_at.desc&limit=60");
   } catch {
     return {};
   }
