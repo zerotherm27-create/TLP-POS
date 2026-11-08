@@ -86,17 +86,28 @@ export const loadLargeLoadKg = async () => {
 };
 
 /**
- * Whether orders pushed from LaundroBot are accepted. The Admin on/off switch (saved setting) decides;
- * until it has been used once, the old LAUNDRODESK_IMPORT_ENABLED variable still applies.
+ * How orders pushed from LaundroBot are handled: "auto" (every paid order is accepted), "manual" (only orders
+ * sent with LaundroBot's Send to LaundroDesk button) or "off" (all refused). The Admin choice decides; before it is
+ * used, the earlier on/off switch applies, and before that the old LAUNDRODESK_IMPORT_ENABLED variable.
  */
-export const importEnabledFrom = (saved) => (typeof saved === "boolean" ? saved : process.env.LAUNDRODESK_IMPORT_ENABLED === "true");
+export const IMPORT_MODES = ["auto", "manual", "off"];
 
-export const loadImportEnabled = async () => {
+export const importModeFrom = (savedMode, savedEnabled) => {
+  if (IMPORT_MODES.includes(savedMode)) return savedMode;
+  if (typeof savedEnabled === "boolean") return savedEnabled ? "auto" : "off";
+  return process.env.LAUNDRODESK_IMPORT_ENABLED === "true" ? "auto" : "off";
+};
+
+/** `manual` is true when LaundroBot says a person pressed its Send button for this order. */
+export const importAllowed = (mode, manual) => mode === "auto" || (mode === "manual" && manual === true);
+
+export const loadImportMode = async () => {
   try {
-    const rows = await supabaseRequest("tlp_settings?key=eq.orderImportEnabled&select=value&limit=1");
-    return importEnabledFrom(rows?.[0]?.value);
+    const rows = await supabaseRequest("tlp_settings?key=in.(orderImportMode,orderImportEnabled)&select=key,value");
+    const saved = Object.fromEntries((rows ?? []).map((r) => [r.key, r.value]));
+    return importModeFrom(saved.orderImportMode, saved.orderImportEnabled);
   } catch {
-    return importEnabledFrom(undefined);
+    return importModeFrom(undefined, undefined);
   }
 };
 

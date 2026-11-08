@@ -6,6 +6,8 @@ import { mockProducts } from "../lib/mockData";
 
 const DEFAULT_THRESHOLD = 50;
 
+export type OrderImportMode = "auto" | "manual" | "off";
+
 /**
  * Shared settings stored in Supabase (via /api/settings/*): the product list and the tub-clean limit.
  * Until an admin saves for the first time, the built-in defaults are shown.
@@ -15,7 +17,7 @@ export function useSettings() {
   const [tubCleanThreshold, setThresholdState] = useState(DEFAULT_THRESHOLD);
   const [extraRates, setExtraRatesState] = useState<ExtraRates>(NO_EXTRA_RATES);
   const [largeLoadKg, setLargeLoadKgState] = useState(10);
-  const [orderImportEnabled, setOrderImportEnabledState] = useState(false);
+  const [orderImportMode, setOrderImportModeState] = useState<OrderImportMode>("off");
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -26,7 +28,8 @@ export function useSettings() {
         if (Array.isArray(data.settings.products)) setProductsState(data.settings.products);
         if (Number.isInteger(data.settings.tubCleanThreshold)) setThresholdState(data.settings.tubCleanThreshold);
         if (typeof data.settings.largeLoadKg === "number" && data.settings.largeLoadKg > 0) setLargeLoadKgState(data.settings.largeLoadKg);
-        if (typeof data.settings.orderImportEnabled === "boolean") setOrderImportEnabledState(data.settings.orderImportEnabled);
+        const mode = data.settings.orderImportMode;
+        if (mode === "auto" || mode === "manual" || mode === "off") setOrderImportModeState(mode);
         const r = data.settings.extraRates;
         if (r && Number.isInteger(r.washCentsPer10) && Number.isInteger(r.dryCentsPer10)) setExtraRatesState(r);
         setError(null);
@@ -98,17 +101,17 @@ export function useSettings() {
     }
   };
 
-  const setOrderImportEnabled = async (on: boolean) => {
-    const before = orderImportEnabled;
-    setOrderImportEnabledState(on);
+  const setOrderImportMode = async (mode: OrderImportMode) => {
+    const before = orderImportMode;
+    setOrderImportModeState(mode);
     try {
-      await save("orderImportEnabled", on);
+      await save("orderImportMode", mode);
       setError(null);
     } catch (e) {
-      setOrderImportEnabledState(before);
-      setError(e instanceof Error ? e.message : "Couldn't change the LaundroBot order switch.");
+      setOrderImportModeState(before);
+      setError(e instanceof Error ? e.message : "Couldn't change how LaundroBot orders are received.");
     }
   };
 
-  return { products, tubCleanThreshold, extraRates, largeLoadKg, orderImportEnabled, settingsError: error, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg, setOrderImportEnabled };
+  return { products, tubCleanThreshold, extraRates, largeLoadKg, orderImportMode, settingsError: error, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg, setOrderImportMode };
 }

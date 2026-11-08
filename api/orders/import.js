@@ -1,6 +1,6 @@
 import { createRequire } from "module";
 import { buildOrderBundle, mapLaundrobotOrder, persistOrderBundle } from "../_laundrobot.js";
-import { loadImportEnabled, loadLargeLoadKg, loadPackages } from "../_catalog.js";
+import { importAllowed, loadImportMode, loadLargeLoadKg, loadPackages } from "../_catalog.js";
 import { ensurePost, readJson, sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 const _require = createRequire(import.meta.url);
@@ -33,14 +33,20 @@ export default async function handler(req, res) {
     if (!ensurePost(req, res)) return;
     if (!requireImportToken(req, res)) return;
 
-    // Imports are paused while the Admin switch is Off. 503 (not 200) so LaundroBot
-    // treats the order as not delivered and the Send button can retry once imports are back on.
-    if (!(await loadImportEnabled())) {
-      sendJson(res, 503, { ok: false, paused: true, message: "Order import is paused." });
+    const body = await readJson(req);
+
+    // Automatic accepts every paid order, Manual only the ones a person sent with LaundroBot's Send button
+    // (body.manual), Off none. 503 (not 200) so LaundroBot treats a refused order as not delivered
+    // and the Send button can send it later.
+    const mode = await loadImportMode();
+    if (!importAllowed(mode, body?.manual === true)) {
+      sendJson(res, 503, {
+        ok: false,
+        paused: true,
+        message: mode === "manual" ? "Automatic sending is paused. Use Send to LaundroDesk for this order." : "Order import is paused.",
+      });
       return;
     }
-
-    const body = await readJson(req);
     // LaundroBot sends: { id, customerName, contactNumber?, notes?, services: [{kind, durationMinutes, quantity, priceCents}] }
     if (!body.id || !body.customerName || !Array.isArray(body.services) || body.services.length === 0) {
       sendJson(res, 400, {

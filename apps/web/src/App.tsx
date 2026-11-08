@@ -55,7 +55,7 @@ export default function App() {
     if (tourKey) { try { localStorage.setItem(tourKey, "1"); } catch { /* private mode: it will show again next time */ } }
   };
   const { machines, refreshMachines, patchMachine } = useMachines();
-  const { products, tubCleanThreshold, extraRates, largeLoadKg, orderImportEnabled, settingsError, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg, setOrderImportEnabled } = useSettings();
+  const { products, tubCleanThreshold, extraRates, largeLoadKg, orderImportMode, settingsError, setProducts, setTubCleanThreshold, setExtraRates, setLargeLoadKg, setOrderImportMode } = useSettings();
   const { packages, error: packagesError, createPackage, updatePackage, removePackage, movePackage } = usePackages();
   const [adminTab, setAdminTab] = useState<"programs" | "packages" | "machines" | "insights">("programs");
   const [showCreateOrder, setShowCreateOrder] = useState(false);
@@ -389,7 +389,7 @@ export default function App() {
                   {adminTab === "packages" && (
                     <div className="flex flex-col gap-5">
                       {settingsError && <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{settingsError}</p>}
-                      <OrderImportCard enabled={orderImportEnabled} onChange={setOrderImportEnabled} />
+                      <OrderImportCard mode={orderImportMode} onChange={setOrderImportMode} />
                       <ExtraRatesCard rates={extraRates} onSave={setExtraRates} />
                       <LargeLoadCard kg={largeLoadKg} onSave={setLargeLoadKg} />
                       <PackageBuilder products={products} packages={packages} error={packagesError} onCreate={createPackage} onUpdate={updatePackage} onRemove={removePackage} onMove={movePackage} />

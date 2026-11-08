@@ -11,7 +11,7 @@ const validators = {
     v.washCentsPer10 >= 0 && v.washCentsPer10 <= 1_000_000 && v.dryCentsPer10 >= 0 && v.dryCentsPer10 <= 1_000_000 &&
     [v.titanWashCentsPer10, v.titanDryCentsPer10].every((n) => n === undefined || (Number.isInteger(n) && n >= 0 && n <= 1_000_000)),
   tubCleanThreshold: (v) => Number.isInteger(v) && v >= 1 && v <= 1000,
-  orderImportEnabled: (v) => typeof v === "boolean",
+  orderImportMode: (v) => v === "auto" || v === "manual" || v === "off",
   products: (v) =>
     Array.isArray(v) &&
     v.length <= 100 &&

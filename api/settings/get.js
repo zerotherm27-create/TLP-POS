@@ -1,5 +1,5 @@
 import { requireUser } from "../_auth.js";
-import { importEnabledFrom } from "../_catalog.js";
+import { importModeFrom } from "../_catalog.js";
 import { sendJson, sendServerError, supabaseRequest } from "../_supabase.js";
 
 export default async function handler(req, res) {
@@ -16,7 +16,8 @@ export default async function handler(req, res) {
 
     const rows = await supabaseRequest("tlp_settings?select=key,value");
     const settings = Object.fromEntries((rows ?? []).map((r) => [r.key, r.value]));
-    settings.orderImportEnabled = importEnabledFrom(settings.orderImportEnabled);
+    settings.orderImportMode = importModeFrom(settings.orderImportMode, settings.orderImportEnabled);
+    delete settings.orderImportEnabled; // the earlier on/off value only feeds the mode above
     sendJson(res, 200, { ok: true, settings });
   } catch (error) {
     sendServerError(res, error, "Failed to load settings.");

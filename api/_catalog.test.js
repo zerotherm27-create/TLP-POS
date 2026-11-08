@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { importEnabledFrom, resolveWash } from "./_catalog.js";
+import { importAllowed, importModeFrom, resolveWash } from "./_catalog.js";
 
 const P = (id, kind, min, extra = {}) => ({ id, machineKind: kind, name: `${min} min`, durationMinutes: min, priceCents: min * 100, pulse: 1, pushDelayMs: 0, ...extra });
 const products = [P("w10", "washer", 10), P("w35", "washer", 35), P("w45", "washer", 45, { pulse: 2 }), P("d10", "dryer", 10), P("d45", "dryer", 45)];
@@ -70,18 +70,31 @@ test("larger (titan) machines can have their own extra-time rate, falling back t
   assert.equal(extraChargeCents({ washCentsPer10: 2000, dryCentsPer10: 1500 }, "washer", 10, "titan"), 2000);
 });
 
-test("the Admin import switch wins; until it is used the old environment variable applies", () => {
+test("the Admin import mode wins, then the earlier on/off value, then the old environment variable", () => {
   const before = process.env.LAUNDRODESK_IMPORT_ENABLED;
   try {
     process.env.LAUNDRODESK_IMPORT_ENABLED = "true";
-    assert.equal(importEnabledFrom(undefined), true);
-    assert.equal(importEnabledFrom(false), false); // switched Off in the app, even though the variable says true
+    assert.equal(importModeFrom(undefined, undefined), "auto");
+    assert.equal(importModeFrom("manual", undefined), "manual");
+    assert.equal(importModeFrom("off", true), "off"); // the chosen mode beats the earlier on/off value
+    assert.equal(importModeFrom(undefined, false), "off"); // earlier switch said Off even though the variable says true
+    assert.equal(importModeFrom(undefined, true), "auto");
+    assert.equal(importModeFrom("sometimes", undefined), "auto"); // not a real mode, falls through to the variable
     delete process.env.LAUNDRODESK_IMPORT_ENABLED;
-    assert.equal(importEnabledFrom(undefined), false);
-    assert.equal(importEnabledFrom(true), true);
-    assert.equal(importEnabledFrom("yes"), false); // not a real switch value, falls back to the variable
+    assert.equal(importModeFrom(undefined, undefined), "off");
   } finally {
     if (before === undefined) delete process.env.LAUNDRODESK_IMPORT_ENABLED;
     else process.env.LAUNDRODESK_IMPORT_ENABLED = before;
   }
+});
+
+test("Automatic accepts every order, Manual only ones sent with the Send button, Off none", () => {
+  assert.equal(importAllowed("auto", false), true);
+  assert.equal(importAllowed("auto", true), true);
+  assert.equal(importAllowed("manual", true), true);
+  assert.equal(importAllowed("manual", false), false);
+  assert.equal(importAllowed("manual", undefined), false);
+  assert.equal(importAllowed("manual", "true"), false); // only a real boolean true counts
+  assert.equal(importAllowed("off", true), false);
+  assert.equal(importAllowed("off", false), false);
 });
