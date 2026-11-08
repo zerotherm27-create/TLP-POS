@@ -5,6 +5,7 @@ import BottomNav, { type Section } from "./components/layout/BottomNav";
 import Topbar from "./components/layout/Topbar";
 import OverviewSection from "./components/overview/OverviewSection";
 import MachineBoard from "./components/machines/MachineBoard";
+import ColdPrompt from "./components/machines/ColdPrompt";
 import TransactionTable from "./components/transactions/TransactionTable";
 import PackageBuilder from "./components/admin/PackageBuilder";
 import InsightsPanel from "./components/admin/InsightsPanel";
@@ -78,6 +79,32 @@ export default function App() {
     setNotice({ msg, kind });
     setTimeout(() => setNotice((cur) => (cur?.msg === msg ? null : cur)), kind === "info" ? 9000 : 5000);
   };
+
+  // Activated 45-minute washer waiting for the machine's answer, then the "press COLD" pop-up.
+  const [awaitingCold, setAwaitingCold] = useState<{ id: string; name: string } | null>(null);
+  const [coldPrompt, setColdPrompt] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!awaitingCold) return;
+    // Check quickly while waiting; the machine list is otherwise refreshed every 15 s.
+    const poll = setInterval(refreshMachines, 2000);
+    const giveUp = setTimeout(() => setAwaitingCold(null), 40_000);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(giveUp);
+    };
+  }, [awaitingCold, refreshMachines]);
+
+  useEffect(() => {
+    if (!awaitingCold) return;
+    const m = machines.find((x) => x.id === awaitingCold.id);
+    if (m?.startedAt) {
+      setColdPrompt(awaitingCold.name);
+      setAwaitingCold(null);
+    } else if (!m || m.activation === "failed" || m.status !== "running") {
+      setAwaitingCold(null);
+    }
+  }, [machines, awaitingCold]);
 
   const callApi = async (url: string, body: unknown) => {
     const res = await authFetch(url, {
@@ -157,6 +184,9 @@ export default function App() {
 
   // Sends the waiting load to the machine. The gateway starts the timer once the machine accepts it; staff press Start on the machine right after.
   const handleActivateMachine = (machineId: string) => {
+    // A 45-minute wash is the washer's COLD course: the credit is sent first, then staff are told to press COLD.
+    const target = machines.find((m) => m.id === machineId);
+    if (target?.kind === "washer" && target.remainingMinutes === 45) setAwaitingCold({ id: target.id, name: target.name });
     patchMachine(machineId, { activation: "sending" });
     return enqueue(async () => {
       try {
@@ -208,6 +238,7 @@ export default function App() {
 
   return (
     <div className="flex min-h-[100dvh] bg-[#f4f6f8]">
+      {coldPrompt && <ColdPrompt machineName={coldPrompt} onClose={() => setColdPrompt(null)} />}
       {notice && (
         <div
           role="alert"

@@ -201,7 +201,7 @@ export default function MachineBoard({ machines, isAdmin, threshold = 50, onMark
                       {activeMachine.kind === "washer" && activeMachine.activation !== "ready" && (
                         <div className="text-[11px] font-bold text-amber-700 mt-1.5">
                           {activeMachine.remainingMinutes === 45
-                            ? "First press COLD on the washer (the display shows 10), then Activate."
+                            ? "After Activate, a reminder will tell you to press COLD on the washer."
                             : activeMachine.remainingMinutes === 35
                               ? "Check HOT is selected on the washer (it is after switching on), then Activate."
                               : null}
